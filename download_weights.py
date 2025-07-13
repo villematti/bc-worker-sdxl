@@ -2,6 +2,7 @@ import torch
 from diffusers import (
     StableDiffusionXLPipeline,
     StableDiffusionXLImg2ImgPipeline,
+    StableDiffusionXLInpaintPipeline,
     AutoencoderKL,
 )
 
@@ -46,8 +47,13 @@ def get_diffusion_pipelines():
         "stabilityai/stable-diffusion-xl-refiner-1.0",
         **common_args,
     )
+    inpaint = fetch_pretrained_model(
+        StableDiffusionXLInpaintPipeline,
+        "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+        **common_args,
+    )
 
-    return pipe, refiner, vae
+    return pipe, refiner, vae, inpaint
 
 
 if __name__ == "__main__":
