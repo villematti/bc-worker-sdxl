@@ -36,7 +36,6 @@ def get_diffusion_pipelines():
 
     no_tensor = {
         "torch_dtype": torch.float16,
-        "variant": "fp16",
         "use_safetensors": False,
     }
 
