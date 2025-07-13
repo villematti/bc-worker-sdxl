@@ -34,11 +34,6 @@ def get_diffusion_pipelines():
         "use_safetensors": True,
     }
 
-    no_tensor = {
-        "torch_dtype": torch.float16,
-        "use_safetensors": False,
-    }
-
     pipe = fetch_pretrained_model(
         StableDiffusionXLPipeline,
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -55,7 +50,7 @@ def get_diffusion_pipelines():
     inpaint = fetch_pretrained_model(
         StableDiffusionXLInpaintPipeline,
         "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
-        **no_tensor,
+        **common_args,
     )
 
     return pipe, refiner, vae, inpaint

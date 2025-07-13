@@ -82,7 +82,9 @@ class ModelHandler:
         )
         inpaint_pipe = AutoPipelineForInpainting.from_pretrained(
             "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",  # <-- CHANGE if you use another inpaint model
-            use_safetensors=False,
+            vae=vae,
+            torch_dtype=torch.float16,
+            use_safetensors=True,
             add_watermarker=False,
             local_files_only=True,
         ).to("cuda")
