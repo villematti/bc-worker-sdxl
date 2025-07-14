@@ -49,7 +49,7 @@ def get_diffusion_pipelines():
     )
     inpaint = fetch_pretrained_model(
         StableDiffusionXLInpaintPipeline,
-        "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+        "wangqyqq/sd_xl_base_1.0_inpainting_0.1.safetensors",
         **common_args,
     )
 

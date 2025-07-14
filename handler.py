@@ -81,7 +81,7 @@ class ModelHandler:
             local_files_only=True,
         )
         inpaint_pipe = AutoPipelineForInpainting.from_pretrained(
-            "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",  # <-- CHANGE if you use another inpaint model
+            "wangqyqq/sd_xl_base_1.0_inpainting_0.1.safetensors",  # <-- CHANGE if you use another inpaint model
             vae=vae,
             torch_dtype=torch.float16,
             use_safetensors=True,
