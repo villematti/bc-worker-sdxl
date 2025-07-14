@@ -1,5 +1,6 @@
 import os
 import base64
+from PIL import Image
 
 import torch
 from diffusers import (
@@ -188,6 +189,17 @@ def generate_image(job):
     output = None
 
     if starting_image and mask_url:
+        print("[generate_image] Mode: Inpainting", flush=True)
+        # Decode starting image
+        if starting_image.startswith("data:"):
+            init_image = decode_base64_image(starting_image).convert("RGB")
+        else:
+            init_image = load_image(starting_image).convert("RGB")
+        # Decode mask image
+        if mask_url.startswith("data:"):
+            mask_image = decode_base64_image(mask_url).convert("L")
+        else:
+            mask_image = load_image(mask_url).convert("L")
         # ---- INPAINTING ----
         print("[generate_image] Mode: Inpainting", flush=True)
         init_image = load_image(starting_image).convert("RGB")
