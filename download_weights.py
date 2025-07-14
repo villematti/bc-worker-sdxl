@@ -49,7 +49,7 @@ def get_diffusion_pipelines():
     )
     inpaint = fetch_pretrained_model(
         StableDiffusionXLInpaintPipeline,
-        "wangqyqq/sd_xl_base_1.0_inpainting_0.1.safetensors",
+        "kandinsky-community/kandinsky-2-2-decoder-inpaint",
         **common_args,
     )
 

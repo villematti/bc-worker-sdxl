@@ -81,8 +81,7 @@ class ModelHandler:
             local_files_only=True,
         )
         inpaint_pipe = AutoPipelineForInpainting.from_pretrained(
-            "wangqyqq/sd_xl_base_1.0_inpainting_0.1.safetensors",  # <-- CHANGE if you use another inpaint model
-            vae=vae,
+            "kandinsky-community/kandinsky-2-2-decoder-inpaint",  # <-- CHANGE if you use another inpaint model
             torch_dtype=torch.float16,
             use_safetensors=True,
             add_watermarker=False,
