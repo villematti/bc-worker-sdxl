@@ -34,6 +34,11 @@ def get_diffusion_pipelines():
         "use_safetensors": True,
     }
 
+    common_args_no_float16 = {
+        "torch_dtype": torch.float16,
+        "use_safetensors": True,
+    }
+
     pipe = fetch_pretrained_model(
         StableDiffusionXLPipeline,
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -50,7 +55,7 @@ def get_diffusion_pipelines():
     inpaint = fetch_pretrained_model(
         StableDiffusionXLInpaintPipeline,
         "kandinsky-community/kandinsky-2-2-decoder-inpaint",
-        **common_args,
+        **common_args_no_float16,
     )
 
     return pipe, refiner, vae, inpaint
