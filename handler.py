@@ -30,6 +30,21 @@ from schemas import INPUT_SCHEMA
 
 torch.cuda.empty_cache()
 
+# ---- Add this function after your imports ----
+def decode_base64_image(data_uri):
+    """
+    Decodes a base64 image string (data URI) into a PIL Image.
+    """
+
+    # Remove the data URL prefix if present
+    if "," in data_uri:
+        header, encoded = data_uri.split(",", 1)
+    else:
+        encoded = data_uri
+    image_data = base64.b64decode(encoded)
+    return Image.open(BytesIO(image_data))
+# ---------------------------------------------
+
 
 class ModelHandler:
     def __init__(self):
