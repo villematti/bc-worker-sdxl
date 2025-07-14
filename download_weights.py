@@ -2,7 +2,7 @@ import torch
 from diffusers import (
     StableDiffusionXLPipeline,
     StableDiffusionXLImg2ImgPipeline,
-    StableDiffusionXLInpaintPipeline,
+    AutoPipelineForInpainting,
     AutoencoderKL,
 )
 
@@ -53,7 +53,7 @@ def get_diffusion_pipelines():
         **common_args,
     )
     inpaint = fetch_pretrained_model(
-        StableDiffusionXLInpaintPipeline,
+        AutoPipelineForInpainting,
         "kandinsky-community/kandinsky-2-2-decoder-inpaint",
         **common_args_no_float16,
     )
