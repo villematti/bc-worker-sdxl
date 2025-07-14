@@ -218,8 +218,6 @@ def generate_image(job):
             mask_image = load_image(mask_url).convert("L")
         # ---- INPAINTING ----
         print("[generate_image] Mode: Inpainting", flush=True)
-        init_image = load_image(starting_image).convert("RGB")
-        mask_image = load_image(mask_url).convert("RGB")
 
         try:
             inpaint_result = MODELS.inpaint(
