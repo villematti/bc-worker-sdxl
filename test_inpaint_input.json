@@ -1,0 +1,15 @@
+{
+  "input": {
+    "prompt": "a beautiful red rose in a garden",
+    "negative_prompt": "blurry, low quality, deformed, ugly",
+    "image_url": "https://example.com/original_image.jpg",
+    "mask_url": "https://example.com/mask_image.png",
+    "height": 1024,
+    "width": 1024,
+    "num_inference_steps": 20,
+    "guidance_scale": 8.0,
+    "strength": 0.99,
+    "seed": 42,
+    "scheduler": "K_EULER"
+  }
+}

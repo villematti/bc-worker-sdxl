@@ -1,11 +1,11 @@
+import os
 import torch
 from diffusers import (
     StableDiffusionXLPipeline,
     StableDiffusionXLImg2ImgPipeline,
-    AutoPipelineForInpainting,
+    StableDiffusionXLInpaintPipeline,  # Use the specific SDXL inpaint pipeline
     AutoencoderKL,
 )
-
 
 def fetch_pretrained_model(model_class, model_name, **kwargs):
     """
@@ -23,20 +23,25 @@ def fetch_pretrained_model(model_class, model_name, **kwargs):
             else:
                 raise
 
+def get_hf_token():
+    # Prefer HUGGINGFACE_TOKEN, fallback to HUGGINGFACE_HUB_TOKEN
+    return os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
 
 def get_diffusion_pipelines():
     """
     Fetches the Stable Diffusion XL pipelines from the HuggingFace model hub.
     """
+    token = get_hf_token()
     common_args = {
         "torch_dtype": torch.float16,
         "variant": "fp16",
         "use_safetensors": True,
+        "use_auth_token": token,
     }
-
     common_args_no_float16 = {
         "torch_dtype": torch.float16,
         "use_safetensors": True,
+        "use_auth_token": token,
     }
 
     pipe = fetch_pretrained_model(
@@ -45,7 +50,7 @@ def get_diffusion_pipelines():
         **common_args,
     )
     vae = fetch_pretrained_model(
-        AutoencoderKL, "madebyollin/sdxl-vae-fp16-fix", **{"torch_dtype": torch.float16}
+        AutoencoderKL, "madebyollin/sdxl-vae-fp16-fix", **{"torch_dtype": torch.float16, "use_auth_token": token}
     )
     refiner = fetch_pretrained_model(
         StableDiffusionXLImg2ImgPipeline,
@@ -53,13 +58,15 @@ def get_diffusion_pipelines():
         **common_args,
     )
     inpaint = fetch_pretrained_model(
-        AutoPipelineForInpainting,
-        "kandinsky-community/kandinsky-2-2-decoder-inpaint",
-        **common_args_no_float16,
+        StableDiffusionXLInpaintPipeline,  # Use specific SDXL inpaint pipeline
+        "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",  # Changed to SDXL inpainting
+        **common_args,  # Use common_args instead of no_float16 for SDXL consistency
     )
 
     return pipe, refiner, vae, inpaint
 
 
 if __name__ == "__main__":
+    print("Downloading SDXL weights and pipelines...")
     get_diffusion_pipelines()
+    print("All done!")

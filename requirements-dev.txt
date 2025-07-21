@@ -1,0 +1,21 @@
+# Development requirements (lighter weight for local testing)
+# Core ML libraries
+torch==2.7.0
+torchvision
+diffusers==0.33.1
+transformers==4.52.4
+accelerate==1.7.0
+
+# Image processing
+pillow
+numpy>=1.24.0
+
+# Development and testing
+pytest
+pytest-asyncio
+requests
+fastapi
+uvicorn
+
+# Optional: for testing without RunPod
+# (we'll mock the runpod functionality)

@@ -7,7 +7,7 @@ import torch
 from diffusers import (
     StableDiffusionXLPipeline,
     StableDiffusionXLImg2ImgPipeline,
-    AutoPipelineForInpainting,
+    StableDiffusionXLInpaintPipeline,  # Use specific SDXL inpaint pipeline
     AutoencoderKL,
 )
 from diffusers.utils import load_image
@@ -97,9 +97,11 @@ class ModelHandler:
             torch_dtype=torch.float16,
             local_files_only=True,
         )
-        inpaint_pipe = AutoPipelineForInpainting.from_pretrained(
-            "kandinsky-community/kandinsky-2-2-decoder-inpaint",  # <-- CHANGE if you use another inpaint model
+        inpaint_pipe = StableDiffusionXLInpaintPipeline.from_pretrained(
+            "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",  # <-- CHANGED to SDXL inpainting
+            vae=vae,
             torch_dtype=torch.float16,
+            variant="fp16",
             use_safetensors=True,
             add_watermarker=False,
             local_files_only=True,
