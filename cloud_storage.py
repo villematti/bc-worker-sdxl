@@ -215,8 +215,6 @@ def save_and_upload_images_cloud(images: List, job_id: str, user_id: str,
     Returns:
         List of public URLs to access the images
     """
-    import tempfile
-    
     image_urls = []
     
     for index, image in enumerate(images):
@@ -291,6 +289,9 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
     import tempfile
     from diffusers.utils import export_to_video
     
+    temp_video_path = None
+    video_bytes = None
+    
     try:
         # Create temporary file for video export
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
@@ -305,6 +306,7 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         
         # Clean up temp file
         os.unlink(temp_video_path)
+        temp_video_path = None  # Mark as cleaned up
         
         # Upload to cloud storage
         video_url = cloud_storage.upload_file(
@@ -330,6 +332,14 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         
     except Exception as e:
         print(f"❌ Failed to upload video: {e}")
+        
+        # Clean up temp file if it exists
+        if temp_video_path and os.path.exists(temp_video_path):
+            try:
+                os.unlink(temp_video_path)
+            except:
+                pass
+        
         # Update Firestore with error status
         error_data = {
             "status": "failed",
@@ -337,6 +347,10 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         }
         cloud_storage.update_generation_status(user_id, file_uid, error_data, "videos")
         
-        # Fallback to base64 (though this will be large)
-        video_data = base64.b64encode(video_bytes).decode("utf-8")
-        return f"data:video/mp4;base64,{video_data}"
+        # Fallback to base64 only if we have video bytes
+        if video_bytes:
+            video_data = base64.b64encode(video_bytes).decode("utf-8")
+            return f"data:video/mp4;base64,{video_data}"
+        else:
+            # If we don't have video bytes, return an error indicator
+            return f"error://failed-to-generate-video/{file_uid}"
