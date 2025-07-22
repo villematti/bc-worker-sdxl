@@ -1,0 +1,38 @@
+{
+  "720p_high_quality_video": {
+    "input": {
+      "task_type": "text2video",
+      "prompt": "A majestic eagle soaring through snow-capped mountains, cinematic, golden hour",
+      "negative_prompt": "blurry, low quality, static, still image",
+      "video_height": 720,
+      "video_width": 1280,
+      "num_frames": 81,
+      "video_guidance_scale": 5.0,
+      "fps": 15,
+      "seed": 42
+    }
+  },
+  
+  "480p_fast_video": {
+    "input": {
+      "task_type": "text2video", 
+      "prompt": "A cat playing with yarn, cute and realistic",
+      "video_height": 480,
+      "video_width": 832,
+      "num_frames": 49,
+      "video_guidance_scale": 5.0,
+      "fps": 15
+    }
+  },
+  
+  "text_to_image_existing": {
+    "input": {
+      "task_type": "text2img",
+      "prompt": "A beautiful landscape, masterpiece",
+      "height": 1024,
+      "width": 1024,
+      "num_inference_steps": 25,
+      "guidance_scale": 7.5
+    }
+  }
+}

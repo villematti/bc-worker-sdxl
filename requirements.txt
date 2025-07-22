@@ -1,5 +1,5 @@
 accelerate==1.7.0
-diffusers==0.33.1
+diffusers==0.34.0
 hf-transfer
 hf-xet
 huggingface-hub
@@ -14,3 +14,8 @@ torchvision
 transformers==4.52.4
 triton
 xformers==0.0.30
+# Video generation dependencies for Wan2.1
+ftfy
+opencv-python
+imageio
+imageio-ffmpeg

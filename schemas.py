@@ -69,4 +69,41 @@ INPUT_SCHEMA = {
         'required': False,
         'default': None
     },
+    # Video generation parameters for Wan2.1-T2V-14B
+    'task_type': {
+        'type': str,
+        'required': False,
+        'default': 'text2img',
+        'constraints': lambda x: x in ['text2img', 'img2img', 'inpaint', 'text2video']
+    },
+    'video_height': {
+        'type': int,
+        'required': False,
+        'default': 480,
+        'constraints': lambda x: x in [480, 720]  # 14B model supports both
+    },
+    'video_width': {
+        'type': int,
+        'required': False,
+        'default': 832,
+        'constraints': lambda x: x in [832, 1280]  # 832x480 or 1280x720
+    },
+    'num_frames': {
+        'type': int,
+        'required': False,
+        'default': 81,  # Default for 14B model
+        'constraints': lambda x: 16 <= x <= 121  # Reasonable range
+    },
+    'video_guidance_scale': {
+        'type': float,
+        'required': False,
+        'default': 5.0,  # Recommended for 14B model
+        'constraints': lambda x: 1.0 <= x <= 20.0
+    },
+    'fps': {
+        'type': int,
+        'required': False,
+        'default': 15,
+        'constraints': lambda x: 10 <= x <= 30
+    },
 }

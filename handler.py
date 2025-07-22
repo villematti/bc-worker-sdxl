@@ -9,8 +9,10 @@ from diffusers import (
     StableDiffusionXLImg2ImgPipeline,
     StableDiffusionXLInpaintPipeline,  # Use specific SDXL inpaint pipeline
     AutoencoderKL,
+    AutoencoderKLWan,  # For Wan2.1 VAE
+    WanPipeline,       # For Wan2.1 T2V
 )
-from diffusers.utils import load_image
+from diffusers.utils import load_image, export_to_video
 
 from diffusers import (
     PNDMScheduler,
@@ -50,7 +52,8 @@ class ModelHandler:
     def __init__(self):
         self.base = None
         self.refiner = None
-        self.inpaint = None            # <-- NEW
+        self.inpaint = None            # <-- SDXL inpaint
+        self.wan_t2v = None           # <-- NEW: Wan2.1 T2V
         self.load_models()
 
     def load_base(self):
@@ -110,10 +113,47 @@ class ModelHandler:
         inpaint_pipe.enable_model_cpu_offload()
         return inpaint_pipe
 
+    def load_wan_t2v(self):  # <-- NEW
+        """Load Wan2.1-T2V-14B pipeline optimized for RunPod's 48GB VRAM"""
+        print("Loading Wan2.1-T2V-14B pipeline...")
+        
+        model_id = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
+        
+        # Load VAE separately for better control
+        vae = AutoencoderKLWan.from_pretrained(
+            model_id,
+            subfolder="vae",
+            torch_dtype=torch.float32,  # Keep VAE as float32 for stability
+            local_files_only=True,
+        )
+        
+        # Load main pipeline with 14B optimizations
+        wan_pipe = WanPipeline.from_pretrained(
+            model_id,
+            vae=vae,
+            torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
+            use_safetensors=True,
+            local_files_only=True,
+        ).to("cuda")
+        
+        # Enable optimizations for 48GB VRAM (less aggressive than 6GB)
+        wan_pipe.enable_attention_slicing()
+        
+        # Enable xformers if available
+        try:
+            wan_pipe.enable_xformers_memory_efficient_attention()
+            print("  ✅ XFormers attention enabled for Wan2.1")
+        except:
+            print("  ⚠️ XFormers not available for Wan2.1, using default attention")
+        
+        print("✅ Wan2.1-T2V-14B pipeline loaded successfully!")
+        return wan_pipe
+
     def load_models(self):
         self.base = self.load_base()
         self.refiner = self.load_refiner()
-        self.inpaint = self.load_inpaint()  # <-- NEW
+        self.inpaint = self.load_inpaint()  # <-- SDXL inpaint
+        self.wan_t2v = self.load_wan_t2v()  # <-- NEW: Wan2.1 T2V
 
 
 MODELS = ModelHandler()
@@ -136,6 +176,27 @@ def _save_and_upload_images(images, job_id):
 
     rp_cleanup.clean([f"/{job_id}"])
     return image_urls
+
+
+def _save_and_upload_video(video_frames, job_id, fps=15):
+    """Save and upload video file"""
+    os.makedirs(f"/{job_id}", exist_ok=True)
+    video_path = os.path.join(f"/{job_id}", "video.mp4")
+    
+    # Export video using diffusers utility
+    export_to_video(video_frames, video_path, fps=fps)
+    
+    if os.environ.get("BUCKET_ENDPOINT_URL", False):
+        # Upload video file
+        video_url = rp_upload.upload_file(job_id, video_path)
+    else:
+        # Return base64 encoded video for local testing
+        with open(video_path, "rb") as video_file:
+            video_data = base64.b64encode(video_file.read()).decode("utf-8")
+            video_url = f"data:video/mp4;base64,{video_data}"
+    
+    rp_cleanup.clean([f"/{job_id}"])
+    return video_url
 
 
 def make_scheduler(name, config):
@@ -203,9 +264,91 @@ def generate_image(job):
         job_input["scheduler"], MODELS.base.scheduler.config
     )
 
-    # ----------- NEW LOGIC: INPAINTING, IMAGE2IMAGE, TEXT2IMAGE -----------
+    # ----------- NEW LOGIC: TEXT2VIDEO, INPAINTING, IMAGE2IMAGE, TEXT2IMAGE -----------
     output = None
+    
+    # Check if this is a text-to-video request
+    task_type = job_input.get("task_type", "text2img")
+    
+    if task_type == "text2video":
+        print("[generate_image] Mode: Text-to-Video (Wan2.1-T2V-14B)", flush=True)
+        
+        try:
+            # Video generation parameters
+            video_params = {
+                "height": job_input.get("video_height", 480),
+                "width": job_input.get("video_width", 832),
+                "num_frames": job_input.get("num_frames", 81),
+                "guidance_scale": job_input.get("video_guidance_scale", 5.0),
+            }
+            
+            # Validate resolution combinations for 14B model
+            if video_params["height"] == 720 and video_params["width"] != 1280:
+                video_params["width"] = 1280
+            elif video_params["height"] == 480 and video_params["width"] != 832:
+                video_params["width"] = 832
+            
+            print(f"  📏 Video size: {video_params['width']}x{video_params['height']}")
+            print(f"  🎞️ Frames: {video_params['num_frames']}")
+            print(f"  📝 Prompt: {job_input['prompt']}")
+            
+            # Enhanced negative prompt for video generation
+            video_negative_prompt = job_input.get("negative_prompt", "")
+            if not video_negative_prompt:
+                video_negative_prompt = ("Bright tones, overexposed, static, blurred details, subtitles, style, works, "
+                                       "paintings, images, static, overall gray, worst quality, low quality, JPEG compression "
+                                       "residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, "
+                                       "deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, "
+                                       "three legs, many people in the background, walking backwards")
+            
+            # Generate video using Wan2.1-T2V-14B
+            with torch.inference_mode():
+                video_result = MODELS.wan_t2v(
+                    prompt=job_input["prompt"],
+                    negative_prompt=video_negative_prompt,
+                    **video_params
+                )
+                
+            # Get video frames
+            video_frames = video_result.frames[0]
+            
+            # Upload video
+            fps = job_input.get("fps", 15)
+            video_url = _save_and_upload_video(video_frames, job["id"], fps=fps)
+            
+            print(f"✅ Video generated successfully!")
+            print(f"📁 Video URL: {video_url}")
+            print(f"🎞️ Video info: {len(video_frames)} frames at {video_params['width']}x{video_params['height']}")
+            
+            # Return video result
+            return {
+                "video_url": video_url,
+                "video_info": {
+                    "frames": len(video_frames),
+                    "width": video_params["width"],
+                    "height": video_params["height"],
+                    "fps": fps,
+                    "duration_seconds": len(video_frames) / fps
+                },
+                "seed": job_input["seed"],
+            }
+            
+        except torch.cuda.OutOfMemoryError as e:
+            print(f"❌ CUDA Out of Memory during video generation: {e}")
+            return {
+                "error": f"Video generation failed - Out of GPU memory: {e}",
+                "refresh_worker": True,
+            }
+        except Exception as e:
+            print(f"❌ Error during video generation: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "error": f"Video generation error: {e}",
+                "refresh_worker": True,
+            }
 
+    # Continue with existing image generation logic
     if starting_image and mask_url:
         print("[generate_image] Mode: Inpainting", flush=True)
         # Decode starting image

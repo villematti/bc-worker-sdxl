@@ -5,6 +5,8 @@ from diffusers import (
     StableDiffusionXLImg2ImgPipeline,
     StableDiffusionXLInpaintPipeline,  # Use the specific SDXL inpaint pipeline
     AutoencoderKL,
+    AutoencoderKLWan,  # For Wan2.1 VAE
+    WanPipeline,       # For Wan2.1 T2V
 )
 
 def fetch_pretrained_model(model_class, model_name, **kwargs):
@@ -29,7 +31,7 @@ def get_hf_token():
 
 def get_diffusion_pipelines():
     """
-    Fetches the Stable Diffusion XL pipelines from the HuggingFace model hub.
+    Fetches the Stable Diffusion XL pipelines and Wan2.1 T2V pipeline from the HuggingFace model hub.
     """
     token = get_hf_token()
     common_args = {
@@ -44,6 +46,7 @@ def get_diffusion_pipelines():
         "use_auth_token": token,
     }
 
+    # SDXL models
     pipe = fetch_pretrained_model(
         StableDiffusionXLPipeline,
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -63,10 +66,32 @@ def get_diffusion_pipelines():
         **common_args,  # Use common_args instead of no_float16 for SDXL consistency
     )
 
-    return pipe, refiner, vae, inpaint
+    # Wan2.1-T2V-14B models
+    print("Downloading Wan2.1-T2V-14B model components...")
+    
+    # Download Wan VAE separately for better control
+    wan_vae = fetch_pretrained_model(
+        AutoencoderKLWan,
+        "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+        subfolder="vae",
+        torch_dtype=torch.float32,  # Keep VAE as float32 for stability
+        use_auth_token=token,
+    )
+    
+    # Download main Wan T2V pipeline
+    wan_t2v = fetch_pretrained_model(
+        WanPipeline,
+        "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+        vae=wan_vae,
+        torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
+        use_safetensors=True,
+        use_auth_token=token,
+    )
+
+    return pipe, refiner, vae, inpaint, wan_vae, wan_t2v
 
 
 if __name__ == "__main__":
-    print("Downloading SDXL weights and pipelines...")
+    print("Downloading SDXL weights and Wan2.1-T2V-14B pipelines...")
     get_diffusion_pipelines()
-    print("All done!")
+    print("All models downloaded successfully!")
