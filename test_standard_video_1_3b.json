@@ -1,0 +1,12 @@
+{
+  "task_type": "text2video",
+  "prompt": "A beautiful sunset over mountains, golden hour lighting, cinematic",
+  "negative_prompt": "blurry, low quality, distorted, ugly, bad anatomy",
+  "video_height": 480,
+  "video_width": 832,
+  "num_frames": 49,
+  "video_guidance_scale": 7.0,
+  "fps": 12,
+  "num_inference_steps": 25,
+  "seed": 12345
+}

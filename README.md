@@ -2,7 +2,9 @@
 
 ---
 
-Run [Stable Diffusion XL](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) as a serverless endpoint to generate images.
+# SDXL + Wan2.1-T2V Multi-Modal Worker
+
+Run [Stable Diffusion XL](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) and [Wan2.1-T2V-1.3B](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers) as a serverless endpoint to generate both **images** and **videos**.
 
 ---
 
@@ -10,9 +12,19 @@ Run [Stable Diffusion XL](https://huggingface.co/stabilityai/stable-diffusion-xl
 
 ---
 
-## Usage
+## 🎯 Features
 
-The worker accepts the following input parameters:
+- **Image Generation**: SDXL with text2img, img2img, and inpainting
+- **Video Generation**: Wan2.1-T2V-1.3B for high-quality text-to-video
+- **Multi-Modal**: Single endpoint supports both images and videos
+- **Optimized**: 1.3B model for faster deployment (~14GB vs 33GB Docker image)
+- **RunPod Ready**: Designed for 48GB VRAM serverless deployment
+
+## 📋 Usage
+
+### Image Generation (SDXL)
+
+Set `task_type` to `text2img`, `img2img`, or `inpaint`:
 
 | Parameter                 | Type    | Default  | Required  | Description                                                                                                         |
 | :------------------------ | :------ | :------- | :-------- | :------------------------------------------------------------------------------------------------------------------ |
@@ -30,14 +42,34 @@ The worker accepts the following input parameters:
 | `num_images`              | `int`   | `1`      | No        | Number of images to generate per prompt (Constraint: must be 1 or 2)                                                |
 | `high_noise_frac`         | `float` | `None`   | No        | Fraction of denoising steps performed by the base model (e.g., 0.8 for 80%). `denoising_end` for base               |
 
+### Video Generation (Wan2.1-T2V-1.3B)
+
+Set `task_type` to `text2video`:
+
+| Parameter                 | Type    | Default  | Required  | Description                                                                                                         |
+| :------------------------ | :------ | :------- | :-------- | :------------------------------------------------------------------------------------------------------------------ |
+| `task_type`               | `str`   | `None`   | **Yes**   | Set to `"text2video"` for video generation                                                                          |
+| `prompt`                  | `str`   | `None`   | **Yes**   | Text description of the desired video content                                                                       |
+| `negative_prompt`         | `str`   | `None`   | No        | Text prompt specifying concepts to exclude from the video                                                           |
+| `video_height`            | `int`   | `480`    | No        | Video height in pixels (480 or 720 supported)                                                                       |
+| `video_width`             | `int`   | `704`    | No        | Video width in pixels (704, 832, or 1280 supported)                                                                 |
+| `num_frames`              | `int`   | `25`     | No        | Number of frames to generate (16-81 range, 25 optimal for 1.3B)                                                     |
+| `video_guidance_scale`    | `float` | `6.0`    | No        | Guidance scale for video generation (1.0-20.0 range, 6.0 optimal for 1.3B)                                         |
+| `fps`                     | `int`   | `8`      | No        | Frames per second for output video (6-30 range)                                                                     |
+| `num_inference_steps`     | `int`   | `25`     | No        | Number of denoising steps for video generation                                                                      |
+| `seed`                    | `int`   | `None`   | No        | Random seed for reproducibility                                                                                     |
+
 > [!NOTE]  
 > `prompt` is required unless `image_url` is provided
 
-### Example Request
+### Example Requests
+
+#### Image Generation (SDXL)
 
 ```json
 {
   "input": {
+    "task_type": "text2img",
     "prompt": "A majestic steampunk dragon soaring through a cloudy sky, intricate clockwork details, golden hour lighting, highly detailed",
     "negative_prompt": "blurry, low quality, deformed, ugly, text, watermark, signature",
     "height": 1024,
@@ -50,6 +82,25 @@ The worker accepts the following input parameters:
     "seed": 42,
     "scheduler": "K_EULER",
     "num_images": 1
+  }
+}
+```
+
+#### Video Generation (Wan2.1-T2V-1.3B)
+
+```json
+{
+  "input": {
+    "task_type": "text2video",
+    "prompt": "A cat playing with a ball of yarn, fluffy and cute, smooth motion",
+    "negative_prompt": "blurry, distorted, ugly, static, low quality",
+    "video_height": 480,
+    "video_width": 704,
+    "num_frames": 25,
+    "video_guidance_scale": 6.0,
+    "fps": 8,
+    "num_inference_steps": 25,
+    "seed": 42
   }
 }
 ```
@@ -76,3 +127,32 @@ which is producing an output like this:
 and when you convert the base64-encoded image into an actual image, it looks like this:
 
 <img src="https://cpjrphpz3t5wbwfe.public.blob.vercel-storage.com/worker-sdxl_output_1-AedTpZlz1eIwIgAEShlod6syLo6Jq6.jpeg" alt="SDXL Generated Image: 'A majestic steampunk dragon soaring through a cloudy sky, intricate clockwork details, golden hour lighting, highly detailed'" width="512" height="512">
+
+## 🚀 Deployment Optimizations
+
+### Wan2.1 Model Selection
+
+This worker uses the **1.3B model** instead of the 14B model for optimal deployment:
+
+| Aspect              | 14B Model          | 1.3B Model ✅      | Improvement |
+| :------------------ | :----------------- | :----------------- | :---------- |
+| Model Size          | ~23GB              | ~8GB               | **65% smaller** |
+| Docker Image        | ~33GB              | ~14GB              | **58% smaller** |
+| Upload Time         | 3+ hours           | ~45 minutes        | **4x faster** |
+| Cold Start          | Slower             | Faster             | **Better UX** |
+| Video Quality       | Highest            | High               | **Good balance** |
+| VRAM Usage          | Higher             | Lower              | **More efficient** |
+
+### Environment Variables
+
+- `DOWNLOAD_WAN2_MODEL=true` - Enable video generation (set to `false` to disable)
+- `HF_HOME=/runpod-volume` - Cache models on persistent storage
+- `TRANSFORMERS_CACHE=/runpod-volume` - Cache transformers on persistent storage
+
+### Supported Resolutions
+
+**1.3B Model Optimizations:**
+- **480p**: 704x480 (optimal), 832x480 (compatible)  
+- **720p**: 1280x720 (high quality)
+- **Frames**: 16-81 supported, 25 recommended for speed
+- **Guidance**: 6.0 optimal (vs 7.5+ for 14B)

@@ -1,0 +1,12 @@
+{
+  "task_type": "text2video",
+  "prompt": "A dragon flying through clouds, majestic and powerful, fantasy art style",
+  "negative_prompt": "blurry, low quality, distorted, ugly, bad anatomy, static",
+  "video_height": 720,
+  "video_width": 1280,
+  "num_frames": 25,
+  "video_guidance_scale": 8.0,
+  "fps": 15,
+  "num_inference_steps": 30,
+  "seed": 99999
+}

@@ -72,27 +72,30 @@ def get_diffusion_pipelines():
     wan_t2v = None
     
     if os.environ.get("DOWNLOAD_WAN2_MODEL", "false").lower() == "true":
-        print("Downloading Wan2.1-T2V-14B model components...")
+        print("Downloading Wan2.1-T2V-1.3B model components...")
         try:
+            # Use the smaller 1.3B model instead of 14B
+            wan_model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+            
             # Download Wan VAE separately for better control
             wan_vae = fetch_pretrained_model(
                 AutoencoderKLWan,
-                "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+                wan_model_id,
                 subfolder="vae",
                 torch_dtype=torch.float32,  # Keep VAE as float32 for stability
                 use_auth_token=token,
             )
             
-            # Download main Wan T2V pipeline
+            # Download main Wan T2V pipeline (1.3B version)
             wan_t2v = fetch_pretrained_model(
                 WanPipeline,
-                "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+                wan_model_id,
                 vae=wan_vae,
-                torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
+                torch_dtype=torch.bfloat16,  # Use bfloat16 for 1.3B model
                 use_safetensors=True,
                 use_auth_token=token,
             )
-            print("✅ Wan2.1-T2V-14B downloaded successfully!")
+            print("✅ Wan2.1-T2V-1.3B downloaded successfully!")
         except Exception as e:
             print(f"⚠️ Wan2.1 download failed: {e}")
             print("🔄 Continuing with SDXL-only functionality")

@@ -1,0 +1,12 @@
+{
+  "task_type": "text2video",
+  "prompt": "A cat playing with a ball of yarn, fluffy and cute",
+  "negative_prompt": "blurry, distorted, ugly",
+  "video_height": 480,
+  "video_width": 704,
+  "num_frames": 25,
+  "video_guidance_scale": 6.0,
+  "fps": 8,
+  "num_inference_steps": 20,
+  "seed": 42
+}

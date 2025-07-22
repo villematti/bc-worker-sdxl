@@ -114,10 +114,10 @@ class ModelHandler:
         return inpaint_pipe
 
     def load_wan_t2v(self):  # <-- NEW
-        """Load Wan2.1-T2V-14B pipeline optimized for RunPod's 48GB VRAM"""
+        """Load Wan2.1-T2V-1.3B pipeline optimized for RunPod's 48GB VRAM"""
         
-        # Check if Wan2.1 models are available
-        wan_model_path = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
+        # Check if Wan2.1 models are available (using 1.3B model)
+        wan_model_path = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
         try:
             # Try to check if the model directory exists
             from huggingface_hub import repo_exists
@@ -128,7 +128,7 @@ class ModelHandler:
             pass
             
         try:
-            print("Loading Wan2.1-T2V-14B pipeline...")
+            print("Loading Wan2.1-T2V-1.3B pipeline...")
             
             model_id = wan_model_path
             
@@ -140,16 +140,16 @@ class ModelHandler:
                 local_files_only=True,
             )
             
-            # Load main pipeline with 14B optimizations
+            # Load main pipeline with 1.3B optimizations
             wan_pipe = WanPipeline.from_pretrained(
                 model_id,
                 vae=vae,
-                torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
+                torch_dtype=torch.bfloat16,  # Use bfloat16 for 1.3B model
                 use_safetensors=True,
                 local_files_only=True,
             ).to("cuda")
             
-            # Enable optimizations for 48GB VRAM (less aggressive than 6GB)
+            # Enable optimizations for 1.3B model
             wan_pipe.enable_attention_slicing()
             
             # Enable xformers if available
@@ -159,7 +159,7 @@ class ModelHandler:
             except:
                 print("  ⚠️ XFormers not available for Wan2.1, using default attention")
             
-            print("✅ Wan2.1-T2V-14B pipeline loaded successfully!")
+            print("✅ Wan2.1-T2V-1.3B pipeline loaded successfully!")
             return wan_pipe
             
         except Exception as e:
@@ -299,19 +299,19 @@ def generate_image(job):
         print("[generate_image] Mode: Text-to-Video (Wan2.1-T2V-14B)", flush=True)
         
         try:
-            # Video generation parameters
+            # Video generation parameters optimized for 1.3B model
             video_params = {
                 "height": job_input.get("video_height", 480),
-                "width": job_input.get("video_width", 832),
-                "num_frames": job_input.get("num_frames", 81),
-                "guidance_scale": job_input.get("video_guidance_scale", 5.0),
+                "width": job_input.get("video_width", 704),  # Optimal for 1.3B model
+                "num_frames": job_input.get("num_frames", 25),  # Reduced for 1.3B efficiency
+                "guidance_scale": job_input.get("video_guidance_scale", 6.0),  # Lower guidance for 1.3B
             }
             
-            # Validate resolution combinations for 14B model
+            # Validate resolution combinations for 1.3B model
             if video_params["height"] == 720 and video_params["width"] != 1280:
                 video_params["width"] = 1280
-            elif video_params["height"] == 480 and video_params["width"] != 832:
-                video_params["width"] = 832
+            elif video_params["height"] == 480 and video_params["width"] not in [704, 832]:
+                video_params["width"] = 704  # Prefer 704 for 1.3B model
             
             print(f"  📏 Video size: {video_params['width']}x{video_params['height']}")
             print(f"  🎞️ Frames: {video_params['num_frames']}")

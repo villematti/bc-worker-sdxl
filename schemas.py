@@ -80,30 +80,30 @@ INPUT_SCHEMA = {
         'type': int,
         'required': False,
         'default': 480,
-        'constraints': lambda x: x in [480, 720]  # 14B model supports both
+        'constraints': lambda x: x in [480, 720]  # 1.3B model supports both
     },
     'video_width': {
         'type': int,
         'required': False,
-        'default': 832,
-        'constraints': lambda x: x in [832, 1280]  # 832x480 or 1280x720
+        'default': 704,  # Optimized for 1.3B model
+        'constraints': lambda x: x in [704, 832, 1280]  # 704x480, 832x480, or 1280x720
     },
     'num_frames': {
         'type': int,
         'required': False,
-        'default': 81,  # Default for 14B model
-        'constraints': lambda x: 16 <= x <= 121  # Reasonable range
+        'default': 25,  # Optimized default for 1.3B model
+        'constraints': lambda x: 16 <= x <= 81  # Reasonable range for 1.3B
     },
     'video_guidance_scale': {
         'type': float,
         'required': False,
-        'default': 5.0,  # Recommended for 14B model
+        'default': 6.0,  # Recommended for 1.3B model
         'constraints': lambda x: 1.0 <= x <= 20.0
     },
     'fps': {
         'type': int,
         'required': False,
-        'default': 15,
-        'constraints': lambda x: 10 <= x <= 30
+        'default': 8,  # Standard fps for video generation
+        'constraints': lambda x: 6 <= x <= 30
     },
 }
