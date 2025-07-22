@@ -1,0 +1,31 @@
+# Temporary SDXL-Only Dockerfile
+# Deploy this first while RunPod registry issues are resolved
+# Then we'll add Wan2.1 back once upload is stable
+
+FROM pytorch/pytorch:2.7.0-cuda12.4-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements without video dependencies
+COPY requirements-sdxl-only.txt requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Download only SDXL models (much smaller, more reliable)
+RUN python download_weights_sdxl_only.py
+
+CMD ["python", "handler.py"]

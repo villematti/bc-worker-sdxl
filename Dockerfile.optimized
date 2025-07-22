@@ -1,0 +1,38 @@
+# Optimized Dockerfile for SDXL + Wan2.1 Integration
+# Use this if the standard build continues to fail
+
+FROM pytorch/pytorch:2.7.0-cuda12.4-cudnn9-runtime
+
+# Optimize environment
+ENV PYTHONUNBUFFERED=1
+ENV HUGGINGFACE_HUB_CACHE=/tmp/huggingface_cache
+ENV PIP_NO_CACHE_DIR=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first (for better Docker layer caching)
+COPY requirements.txt .
+
+# Install Python dependencies with optimizations
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Download models with better error handling
+RUN python download_weights.py
+
+# Set up the command
+CMD ["python", "handler.py"]

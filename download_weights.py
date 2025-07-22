@@ -93,5 +93,28 @@ def get_diffusion_pipelines():
 
 if __name__ == "__main__":
     print("Downloading SDXL weights and Wan2.1-T2V-14B pipelines...")
-    get_diffusion_pipelines()
-    print("All models downloaded successfully!")
+    
+    try:
+        # Download with retry logic
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                get_diffusion_pipelines()
+                print("✅ All models downloaded successfully!")
+                break
+            except Exception as e:
+                print(f"❌ Download attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    print("🔄 Retrying model download...")
+                    import time
+                    time.sleep(10)  # Wait 10 seconds before retry
+                else:
+                    print("💥 Final attempt failed!")
+                    raise
+                    
+    except Exception as e:
+        print(f"💥 Model download failed completely: {e}")
+        print("🔍 This might be a temporary issue. Try rebuilding.")
+        # Exit with error code
+        import sys
+        sys.exit(1)
