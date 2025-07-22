@@ -18,7 +18,39 @@ Run [Stable Diffusion XL](https://huggingface.co/stabilityai/stable-diffusion-xl
 - **Video Generation**: Wan2.1-T2V-1.3B for high-quality text-to-video
 - **Multi-Modal**: Single endpoint supports both images and videos
 - **Optimized**: 1.3B model for faster deployment (~14GB vs 33GB Docker image)
+- **Cloud Storage**: Firebase/AWS integration for large file handling
+- **Real-time Updates**: Database notifications for mobile apps
 - **RunPod Ready**: Designed for 48GB VRAM serverless deployment
+
+## ☁️ Cloud Storage Integration
+
+**NEW**: Upload generated files to cloud storage instead of returning large base64 strings!
+
+- **📦 Smaller API responses** (URLs instead of base64)
+- **🚀 Faster mobile performance** (progressive loading)
+- **🗄️ Database tracking** (generation history & status)
+- **🔄 Real-time updates** (Firebase Firestore notifications)
+
+See [CLOUD_STORAGE.md](CLOUD_STORAGE.md) for setup instructions.
+
+### Quick Example
+```json
+{
+  "task_type": "text2video",
+  "prompt": "A majestic eagle soaring through mountains",
+  "user_id": "firebase_user_123",
+  "file_uid": "unique-generation-id", 
+  "use_cloud_storage": true
+}
+```
+
+Response:
+```json
+{
+  "video_url": "https://firebasestorage.googleapis.com/.../video.mp4",
+  "file_uid": "unique-generation-id"
+}
+```
 
 ## 📋 Usage
 
@@ -52,10 +84,10 @@ Set `task_type` to `text2video`:
 | `prompt`                  | `str`   | `None`   | **Yes**   | Text description of the desired video content                                                                       |
 | `negative_prompt`         | `str`   | `None`   | No        | Text prompt specifying concepts to exclude from the video                                                           |
 | `video_height`            | `int`   | `480`    | No        | Video height in pixels (480 or 720 supported)                                                                       |
-| `video_width`             | `int`   | `704`    | No        | Video width in pixels (704, 832, or 1280 supported)                                                                 |
-| `num_frames`              | `int`   | `25`     | No        | Number of frames to generate (16-81 range, 25 optimal for 1.3B)                                                     |
-| `video_guidance_scale`    | `float` | `6.0`    | No        | Guidance scale for video generation (1.0-20.0 range, 6.0 optimal for 1.3B)                                         |
-| `fps`                     | `int`   | `8`      | No        | Frames per second for output video (6-30 range)                                                                     |
+| `video_width`             | `int`   | `832`    | No        | Video width in pixels (832 or 1280 supported)                                                                       |
+| `num_frames`              | `int`   | `81`     | No        | Number of frames to generate (16-81 range, 81 is official default)                                                  |
+| `video_guidance_scale`    | `float` | `5.0`    | No        | Guidance scale for video generation (1.0-20.0 range, 5.0 is official default)                                      |
+| `fps`                     | `int`   | `15`     | No        | Frames per second for output video (6-30 range, 15 is official default)                                             |
 | `num_inference_steps`     | `int`   | `25`     | No        | Number of denoising steps for video generation                                                                      |
 | `seed`                    | `int`   | `None`   | No        | Random seed for reproducibility                                                                                     |
 
@@ -95,10 +127,10 @@ Set `task_type` to `text2video`:
     "prompt": "A cat playing with a ball of yarn, fluffy and cute, smooth motion",
     "negative_prompt": "blurry, distorted, ugly, static, low quality",
     "video_height": 480,
-    "video_width": 704,
-    "num_frames": 25,
-    "video_guidance_scale": 6.0,
-    "fps": 8,
+    "video_width": 832,
+    "num_frames": 81,
+    "video_guidance_scale": 5.0,
+    "fps": 15,
     "num_inference_steps": 25,
     "seed": 42
   }
@@ -117,6 +149,32 @@ which is producing an output like this:
     "images": [
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zU..."
     ],
+    "seed": 42
+  },
+  "status": "COMPLETED",
+  "workerId": "462u6mrq9s28h6"
+}
+```
+
+### Video Generation Response
+
+```json
+{
+  "delayTime": 45000,
+  "executionTime": 25000,
+  "id": "448f10b8-c745-4c3b-8fad-b1d4ebb7a65c-e1",
+  "output": {
+    "video_url": "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAI...",
+    "videos": [
+      "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAI..."
+    ],
+    "video_info": {
+      "frames": 81,
+      "width": 832,
+      "height": 480,
+      "fps": 15,
+      "duration_seconds": 5.4
+    },
     "seed": 42
   },
   "status": "COMPLETED",
@@ -151,8 +209,8 @@ This worker uses the **1.3B model** instead of the 14B model for optimal deploym
 
 ### Supported Resolutions
 
-**1.3B Model Optimizations:**
-- **480p**: 704x480 (optimal), 832x480 (compatible)  
-- **720p**: 1280x720 (high quality)
-- **Frames**: 16-81 supported, 25 recommended for speed
-- **Guidance**: 6.0 optimal (vs 7.5+ for 14B)
+**1.3B Model Official Settings:**
+- **480p**: 832x480 (official, stable), 1280x720 (supported but less stable)
+- **Frames**: 16-81 supported, 81 is official default
+- **Guidance**: 5.0 official default (command line uses 6 but translates to 5.0 in diffusers)
+- **FPS**: 15 for export (official default)

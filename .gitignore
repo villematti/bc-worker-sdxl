@@ -162,3 +162,5 @@ runpod.toml
 
 # Generated video files
 *.mp4
+
+storage_access.json

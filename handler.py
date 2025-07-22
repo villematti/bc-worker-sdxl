@@ -2,6 +2,7 @@ import os
 import base64
 from io import BytesIO
 from PIL import Image
+import uuid
 
 import torch
 from diffusers import (
@@ -29,6 +30,11 @@ from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
 
 from schemas import INPUT_SCHEMA
+from cloud_storage import (
+    cloud_storage, 
+    save_and_upload_images_cloud, 
+    save_and_upload_video_cloud
+)
 
 torch.cuda.empty_cache()
 
@@ -140,7 +146,7 @@ class ModelHandler:
                 local_files_only=True,
             )
             
-            # Load main pipeline with 1.3B optimizations
+            # Load main pipeline with official 1.3B settings
             wan_pipe = WanPipeline.from_pretrained(
                 model_id,
                 vae=vae,
@@ -149,8 +155,15 @@ class ModelHandler:
                 local_files_only=True,
             ).to("cuda")
             
-            # Enable optimizations for 1.3B model
+            # Enable optimizations for memory efficiency (following official recommendations)
             wan_pipe.enable_attention_slicing()
+            
+            # Try to enable model CPU offloading for memory efficiency (like --offload_model True)
+            try:
+                wan_pipe.enable_model_cpu_offload()
+                print("  ✅ Model CPU offloading enabled for memory efficiency")
+            except:
+                print("  ⚠️ Model CPU offloading not available, using regular CUDA")
             
             # Enable xformers if available
             try:
@@ -168,16 +181,39 @@ class ModelHandler:
             return None
 
     def load_models(self):
-        self.base = self.load_base()
-        self.refiner = self.load_refiner()
-        self.inpaint = self.load_inpaint()  # <-- SDXL inpaint
-        self.wan_t2v = self.load_wan_t2v()  # <-- NEW: Wan2.1 T2V
+        # Try to load SDXL models (for image generation)
+        try:
+            print("Loading SDXL models...")
+            self.base = self.load_base()
+            self.refiner = self.load_refiner()
+            self.inpaint = self.load_inpaint()
+            print("✅ SDXL models loaded successfully")
+        except Exception as e:
+            print(f"⚠️ SDXL models not available: {e}")
+            print("🎬 Video-only mode: SDXL image generation will be disabled")
+            self.base = None
+            self.refiner = None
+            self.inpaint = None
+        
+        # Load Wan2.1 for video generation
+        self.wan_t2v = self.load_wan_t2v()
 
 
 MODELS = ModelHandler()
 
 
-def _save_and_upload_images(images, job_id):
+def _save_and_upload_images(images, job_id, user_id=None, file_uid=None, use_cloud_storage=False):
+    """Save and upload images with optional cloud storage"""
+    
+    # Use cloud storage if enabled and metadata provided
+    if use_cloud_storage and user_id and file_uid:
+        print(f"📤 Uploading {len(images)} images to cloud storage for user {user_id}")
+        try:
+            return save_and_upload_images_cloud(images, job_id, user_id, file_uid)
+        except Exception as e:
+            print(f"⚠️ Cloud storage failed, falling back to base64: {e}")
+    
+    # Original base64/bucket upload logic (fallback)
     os.makedirs(f"/{job_id}", exist_ok=True)
     image_urls = []
     for index, image in enumerate(images):
@@ -196,22 +232,28 @@ def _save_and_upload_images(images, job_id):
     return image_urls
 
 
-def _save_and_upload_video(video_frames, job_id, fps=15):
-    """Save and upload video file"""
+def _save_and_upload_video(video_frames, job_id, fps=15, user_id=None, file_uid=None, use_cloud_storage=False):
+    """Save and upload video with optional cloud storage"""
+    
+    # Use cloud storage if enabled and metadata provided
+    if use_cloud_storage and user_id and file_uid:
+        print(f"📤 Uploading video to cloud storage for user {user_id}")
+        try:
+            return save_and_upload_video_cloud(video_frames, job_id, user_id, file_uid, fps)
+        except Exception as e:
+            print(f"⚠️ Cloud storage failed, falling back to base64: {e}")
+    
+    # Original base64 logic (fallback)
     os.makedirs(f"/{job_id}", exist_ok=True)
     video_path = os.path.join(f"/{job_id}", "video.mp4")
     
     # Export video using diffusers utility
     export_to_video(video_frames, video_path, fps=fps)
     
-    if os.environ.get("BUCKET_ENDPOINT_URL", False):
-        # Upload video file
-        video_url = rp_upload.upload_file(job_id, video_path)
-    else:
-        # Return base64 encoded video for local testing
-        with open(video_path, "rb") as video_file:
-            video_data = base64.b64encode(video_file.read()).decode("utf-8")
-            video_url = f"data:video/mp4;base64,{video_data}"
+    # Always return base64 encoded video (consistent with images)
+    with open(video_path, "rb") as video_file:
+        video_data = base64.b64encode(video_file.read()).decode("utf-8")
+        video_url = f"data:video/mp4;base64,{video_data}"
     
     rp_cleanup.clean([f"/{job_id}"])
     return video_url
@@ -282,6 +324,26 @@ def generate_image(job):
         job_input["scheduler"], MODELS.base.scheduler.config
     )
 
+    # ----------- CLOUD STORAGE AND DATABASE SETUP -----------
+    user_id = job_input.get("user_id")
+    file_uid = job_input.get("file_uid") 
+    use_cloud_storage = job_input.get("use_cloud_storage", False)
+    
+    # Generate file_uid if not provided but cloud storage is requested
+    if use_cloud_storage and not file_uid:
+        file_uid = str(uuid.uuid4())
+        print(f"🆔 Generated file_uid: {file_uid}")
+    
+    # Create initial generation request in database
+    if use_cloud_storage and user_id and file_uid:
+        print(f"📝 Creating generation request for user {user_id}, file {file_uid}")
+        cloud_storage.create_generation_request(user_id, file_uid, {
+            'task_type': task_type,
+            'prompt': job_input.get('prompt', ''),
+            'parameters': {k: v for k, v in job_input.items() if k not in ['user_id', 'file_uid']},
+            'job_id': job["id"]
+        })
+
     # ----------- NEW LOGIC: TEXT2VIDEO, INPAINTING, IMAGE2IMAGE, TEXT2IMAGE -----------
     output = None
     
@@ -296,22 +358,35 @@ def generate_image(job):
                 "info": "Set DOWNLOAD_WAN2_MODEL=true environment variable during build to enable video generation"
             }
             
-        print("[generate_image] Mode: Text-to-Video (Wan2.1-T2V-14B)", flush=True)
+        print("[generate_image] Mode: Text-to-Video (Wan2.1-T2V-1.3B)", flush=True)
+        print(f"[generate_image] Wan2.1 model loaded: {MODELS.wan_t2v is not None}", flush=True)
+        print(f"[generate_image] Original request params: num_frames={job_input.get('num_frames')}, guidance={job_input.get('video_guidance_scale')}", flush=True)
         
         try:
-            # Video generation parameters optimized for 1.3B model
+            # Video generation parameters - using official 1.3B model defaults
             video_params = {
                 "height": job_input.get("video_height", 480),
-                "width": job_input.get("video_width", 704),  # Optimal for 1.3B model
-                "num_frames": job_input.get("num_frames", 25),  # Reduced for 1.3B efficiency
-                "guidance_scale": job_input.get("video_guidance_scale", 6.0),  # Lower guidance for 1.3B
+                "width": job_input.get("video_width", 832),  # Official default for 1.3B
+                "num_frames": job_input.get("num_frames", 81),  # Official default for 1.3B
+                "guidance_scale": job_input.get("video_guidance_scale", 5.0),  # Official default for 1.3B
             }
+            
+            # Clamp parameters for 1.3B model compatibility
+            if video_params["num_frames"] > 81:  # Max frames for 1.3B model
+                print(f"  ⚠️ Reducing frames from {video_params['num_frames']} to 81 for 1.3B model compatibility")
+                video_params["num_frames"] = 81
+            elif video_params["num_frames"] < 16:
+                video_params["num_frames"] = 16
+                
+            if video_params["guidance_scale"] > 10.0:  # Clamp guidance for 1.3B
+                print(f"  ⚠️ Reducing guidance from {video_params['guidance_scale']} to 10.0 for 1.3B model")
+                video_params["guidance_scale"] = 10.0
             
             # Validate resolution combinations for 1.3B model
             if video_params["height"] == 720 and video_params["width"] != 1280:
                 video_params["width"] = 1280
-            elif video_params["height"] == 480 and video_params["width"] not in [704, 832]:
-                video_params["width"] = 704  # Prefer 704 for 1.3B model
+            elif video_params["height"] == 480 and video_params["width"] not in [832]:
+                video_params["width"] = 832  # Official default for 1.3B model
             
             print(f"  📏 Video size: {video_params['width']}x{video_params['height']}")
             print(f"  🎞️ Frames: {video_params['num_frames']}")
@@ -326,28 +401,41 @@ def generate_image(job):
                                        "deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, "
                                        "three legs, many people in the background, walking backwards")
             
-            # Generate video using Wan2.1-T2V-14B
+            # Generate video using Wan2.1-T2V-1.3B
+            print(f"[generate_image] Final video params: {video_params}", flush=True)
+            print(f"[generate_image] Video negative prompt: {video_negative_prompt[:100]}...", flush=True)
+            
             with torch.inference_mode():
+                print("[generate_image] Starting video generation...", flush=True)
                 video_result = MODELS.wan_t2v(
                     prompt=job_input["prompt"],
                     negative_prompt=video_negative_prompt,
                     **video_params
                 )
+                print("[generate_image] Video generation completed!", flush=True)
                 
             # Get video frames
             video_frames = video_result.frames[0]
             
-            # Upload video
-            fps = job_input.get("fps", 15)
-            video_url = _save_and_upload_video(video_frames, job["id"], fps=fps)
+            # Upload video with cloud storage support
+            fps = job_input.get("fps", 15)  # Official default for 1.3B model
+            video_url = _save_and_upload_video(
+                video_frames, 
+                job["id"], 
+                fps=fps,
+                user_id=user_id,
+                file_uid=file_uid,
+                use_cloud_storage=use_cloud_storage
+            )
             
             print(f"✅ Video generated successfully!")
             print(f"📁 Video URL: {video_url}")
             print(f"🎞️ Video info: {len(video_frames)} frames at {video_params['width']}x{video_params['height']}")
             
-            # Return video result
-            return {
-                "video_url": video_url,
+            # Prepare complete generation data
+            generation_data = {
+                "videos": [video_url],  # Array format like images
+                "video_url": video_url,  # Single video like image_url
                 "video_info": {
                     "frames": len(video_frames),
                     "width": video_params["width"],
@@ -356,7 +444,22 @@ def generate_image(job):
                     "duration_seconds": len(video_frames) / fps
                 },
                 "seed": job_input["seed"],
+                "task_type": "text2video",
+                "generation_time": None,  # Could add timing if needed
+                "file_uid": file_uid,
+                "user_id": user_id
             }
+            
+            # Update database with completion status
+            if use_cloud_storage and user_id and file_uid:
+                success = cloud_storage.update_generation_status(user_id, file_uid, generation_data)
+                if success:
+                    print(f"✅ Database updated for user {user_id}, file {file_uid}")
+                else:
+                    print(f"⚠️ Failed to update database for user {user_id}, file {file_uid}")
+            
+            # Return video result
+            return generation_data
             
         except torch.cuda.OutOfMemoryError as e:
             print(f"❌ CUDA Out of Memory during video generation: {e}")
@@ -484,13 +587,35 @@ def generate_image(job):
                 "refresh_worker": True,
             }
 
-    image_urls = _save_and_upload_images(output, job["id"])
+    # Upload images with cloud storage support
+    image_urls = _save_and_upload_images(
+        output, 
+        job["id"],
+        user_id=user_id,
+        file_uid=file_uid, 
+        use_cloud_storage=use_cloud_storage
+    )
 
-    results = {
+    # Prepare complete generation data
+    generation_data = {
         "images": image_urls,
         "image_url": image_urls[0],
         "seed": job_input["seed"],
+        "task_type": task_type,
+        "generation_time": None,  # Could add timing if needed
+        "file_uid": file_uid,
+        "user_id": user_id
     }
+
+    # Update database with completion status
+    if use_cloud_storage and user_id and file_uid:
+        success = cloud_storage.update_generation_status(user_id, file_uid, generation_data)
+        if success:
+            print(f"✅ Database updated for user {user_id}, file {file_uid}")
+        else:
+            print(f"⚠️ Failed to update database for user {user_id}, file {file_uid}")
+
+    results = generation_data
 
     # For consistency: refresh worker if starting_image (img2img/inpaint), as before
     if starting_image:

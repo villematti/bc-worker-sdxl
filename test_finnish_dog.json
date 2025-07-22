@@ -1,0 +1,12 @@
+{
+  "task_type": "text2video",
+  "prompt": "yorsherin terrieri juoksee niityllä",
+  "negative_prompt": "blurry, distorted, ugly, low quality",
+  "video_height": 480,
+  "video_width": 832,
+  "num_frames": 81,
+  "video_guidance_scale": 5.0,
+  "fps": 15,
+  "num_inference_steps": 25,
+  "seed": 42
+}

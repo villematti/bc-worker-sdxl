@@ -18,4 +18,6 @@ xformers==0.0.30
 ftfy
 opencv-python
 imageio
+# Firebase cloud storage and database
+firebase-admin>=6.0.0
 imageio-ffmpeg
