@@ -115,39 +115,57 @@ class ModelHandler:
 
     def load_wan_t2v(self):  # <-- NEW
         """Load Wan2.1-T2V-14B pipeline optimized for RunPod's 48GB VRAM"""
-        print("Loading Wan2.1-T2V-14B pipeline...")
         
-        model_id = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
-        
-        # Load VAE separately for better control
-        vae = AutoencoderKLWan.from_pretrained(
-            model_id,
-            subfolder="vae",
-            torch_dtype=torch.float32,  # Keep VAE as float32 for stability
-            local_files_only=True,
-        )
-        
-        # Load main pipeline with 14B optimizations
-        wan_pipe = WanPipeline.from_pretrained(
-            model_id,
-            vae=vae,
-            torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
-            use_safetensors=True,
-            local_files_only=True,
-        ).to("cuda")
-        
-        # Enable optimizations for 48GB VRAM (less aggressive than 6GB)
-        wan_pipe.enable_attention_slicing()
-        
-        # Enable xformers if available
+        # Check if Wan2.1 models are available
+        wan_model_path = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
         try:
-            wan_pipe.enable_xformers_memory_efficient_attention()
-            print("  ✅ XFormers attention enabled for Wan2.1")
+            # Try to check if the model directory exists
+            from huggingface_hub import repo_exists
+            if not repo_exists(wan_model_path):
+                print("⚠️ Wan2.1 model not found, skipping video functionality")
+                return None
         except:
-            print("  ⚠️ XFormers not available for Wan2.1, using default attention")
-        
-        print("✅ Wan2.1-T2V-14B pipeline loaded successfully!")
-        return wan_pipe
+            pass
+            
+        try:
+            print("Loading Wan2.1-T2V-14B pipeline...")
+            
+            model_id = wan_model_path
+            
+            # Load VAE separately for better control
+            vae = AutoencoderKLWan.from_pretrained(
+                model_id,
+                subfolder="vae",
+                torch_dtype=torch.float32,  # Keep VAE as float32 for stability
+                local_files_only=True,
+            )
+            
+            # Load main pipeline with 14B optimizations
+            wan_pipe = WanPipeline.from_pretrained(
+                model_id,
+                vae=vae,
+                torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
+                use_safetensors=True,
+                local_files_only=True,
+            ).to("cuda")
+            
+            # Enable optimizations for 48GB VRAM (less aggressive than 6GB)
+            wan_pipe.enable_attention_slicing()
+            
+            # Enable xformers if available
+            try:
+                wan_pipe.enable_xformers_memory_efficient_attention()
+                print("  ✅ XFormers attention enabled for Wan2.1")
+            except:
+                print("  ⚠️ XFormers not available for Wan2.1, using default attention")
+            
+            print("✅ Wan2.1-T2V-14B pipeline loaded successfully!")
+            return wan_pipe
+            
+        except Exception as e:
+            print(f"⚠️ Failed to load Wan2.1 pipeline: {e}")
+            print("🔄 Continuing with SDXL-only functionality")
+            return None
 
     def load_models(self):
         self.base = self.load_base()
@@ -271,6 +289,13 @@ def generate_image(job):
     task_type = job_input.get("task_type", "text2img")
     
     if task_type == "text2video":
+        # Check if Wan2.1 is available
+        if MODELS.wan_t2v is None:
+            return {
+                "error": "Video generation not available - Wan2.1 model not loaded",
+                "info": "Set DOWNLOAD_WAN2_MODEL=true environment variable during build to enable video generation"
+            }
+            
         print("[generate_image] Mode: Text-to-Video (Wan2.1-T2V-14B)", flush=True)
         
         try:

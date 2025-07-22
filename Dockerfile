@@ -3,6 +3,7 @@ FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # install python 3.11 and pip
 ENV DEBIAN_FRONTEND=noninteractive
+ENV DOWNLOAD_WAN2_MODEL=true
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
@@ -11,6 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.11-venv \
     python3-pip \
     git \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # set python3.11 as the default python

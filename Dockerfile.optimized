@@ -7,6 +7,7 @@ FROM pytorch/pytorch:2.7.0-cuda12.4-cudnn9-runtime
 ENV PYTHONUNBUFFERED=1
 ENV HUGGINGFACE_HUB_CACHE=/tmp/huggingface_cache
 ENV PIP_NO_CACHE_DIR=1
+ENV DOWNLOAD_WAN2_MODEL=true
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

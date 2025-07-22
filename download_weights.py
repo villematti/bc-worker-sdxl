@@ -31,7 +31,7 @@ def get_hf_token():
 
 def get_diffusion_pipelines():
     """
-    Fetches the Stable Diffusion XL pipelines and Wan2.1 T2V pipeline from the HuggingFace model hub.
+    Fetches the Stable Diffusion XL pipelines and optionally Wan2.1 T2V pipeline from the HuggingFace model hub.
     """
     token = get_hf_token()
     common_args = {
@@ -46,7 +46,8 @@ def get_diffusion_pipelines():
         "use_auth_token": token,
     }
 
-    # SDXL models
+    # SDXL models (essential)
+    print("Downloading SDXL models...")
     pipe = fetch_pretrained_model(
         StableDiffusionXLPipeline,
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -66,27 +67,39 @@ def get_diffusion_pipelines():
         **common_args,  # Use common_args instead of no_float16 for SDXL consistency
     )
 
-    # Wan2.1-T2V-14B models
-    print("Downloading Wan2.1-T2V-14B model components...")
+    # Wan2.1-T2V-14B models (optional - only if environment variable is set)
+    wan_vae = None
+    wan_t2v = None
     
-    # Download Wan VAE separately for better control
-    wan_vae = fetch_pretrained_model(
-        AutoencoderKLWan,
-        "Wan-AI/Wan2.1-T2V-14B-Diffusers",
-        subfolder="vae",
-        torch_dtype=torch.float32,  # Keep VAE as float32 for stability
-        use_auth_token=token,
-    )
-    
-    # Download main Wan T2V pipeline
-    wan_t2v = fetch_pretrained_model(
-        WanPipeline,
-        "Wan-AI/Wan2.1-T2V-14B-Diffusers",
-        vae=wan_vae,
-        torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
-        use_safetensors=True,
-        use_auth_token=token,
-    )
+    if os.environ.get("DOWNLOAD_WAN2_MODEL", "false").lower() == "true":
+        print("Downloading Wan2.1-T2V-14B model components...")
+        try:
+            # Download Wan VAE separately for better control
+            wan_vae = fetch_pretrained_model(
+                AutoencoderKLWan,
+                "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+                subfolder="vae",
+                torch_dtype=torch.float32,  # Keep VAE as float32 for stability
+                use_auth_token=token,
+            )
+            
+            # Download main Wan T2V pipeline
+            wan_t2v = fetch_pretrained_model(
+                WanPipeline,
+                "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+                vae=wan_vae,
+                torch_dtype=torch.bfloat16,  # Use bfloat16 for 14B model
+                use_safetensors=True,
+                use_auth_token=token,
+            )
+            print("✅ Wan2.1-T2V-14B downloaded successfully!")
+        except Exception as e:
+            print(f"⚠️ Wan2.1 download failed: {e}")
+            print("🔄 Continuing with SDXL-only functionality")
+            wan_vae = None
+            wan_t2v = None
+    else:
+        print("ℹ️ Skipping Wan2.1 download (DOWNLOAD_WAN2_MODEL not set to 'true')")
 
     return pipe, refiner, vae, inpaint, wan_vae, wan_t2v
 
