@@ -736,7 +736,6 @@ def _process_generation_task(job, job_input):
                 width=job_input["width"],
                 num_inference_steps=job_input["num_inference_steps"],
                 guidance_scale=job_input["guidance_scale"],
-                num_images_per_prompt=job_input["num_images"],
                 generator=generator,
             )
             output = inpaint_result.images
@@ -767,7 +766,6 @@ def _process_generation_task(job, job_input):
                 guidance_scale=job_input["guidance_scale"],
                 denoising_end=job_input["high_noise_frac"],
                 output_type="latent",
-                num_images_per_prompt=job_input["num_images"],
                 generator=generator,
             )
             image = base_result.images
@@ -784,7 +782,6 @@ def _process_generation_task(job, job_input):
                 num_inference_steps=job_input["refiner_inference_steps"],
                 strength=job_input["strength"],
                 image=image,
-                num_images_per_prompt=job_input["num_images"],
                 generator=generator,
             )
             output = refiner_result.images

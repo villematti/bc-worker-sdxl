@@ -34,7 +34,7 @@ Content-Type: application/json
     // Optional parameters
     "width": 512,
     "height": 512,
-    "num_images_per_prompt": 1,
+    // "num_images_per_prompt": 1,
     "num_inference_steps": 20,
     "guidance_scale": 7.5,
     "negative_prompt": "blurry, low quality",
