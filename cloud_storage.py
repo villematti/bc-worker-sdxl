@@ -247,8 +247,13 @@ def save_and_upload_images_cloud(images: List, job_id: str, user_id: str,
             print(f"❌ Failed to upload image {index}: {e}")
             # Update Firestore with error status for this image
             error_data = {
+                "generated": False,
+                "error": True,
                 "status": "failed",
-                "error": str(e)
+                "error_message": str(e),
+                "error_type": type(e).__name__,
+                "failed_at": firestore.SERVER_TIMESTAMP,
+                "modified": firestore.SERVER_TIMESTAMP
             }
             cloud_storage.update_generation_status(user_id, image_file_uid, error_data, "images")
             
@@ -259,13 +264,31 @@ def save_and_upload_images_cloud(images: List, job_id: str, user_id: str,
     # Update main document with final data
     try:
         generation_data = {
+            "generated": True,
+            "error": False,
             "image_urls": image_urls,
             "status": "completed",
-            "image_count": len(images)
+            "image_count": len(images),
+            "completed_at": firestore.SERVER_TIMESTAMP,
+            "modified": firestore.SERVER_TIMESTAMP
         }
         cloud_storage.update_generation_status(user_id, file_uid, generation_data, "images")
     except Exception as e:
         print(f"❌ Failed to update final generation status: {e}")
+        # Try to update with error status
+        try:
+            error_data = {
+                "generated": False,
+                "error": True,
+                "status": "failed",
+                "error_message": f"Failed to update final status: {str(e)}",
+                "error_type": type(e).__name__,
+                "failed_at": firestore.SERVER_TIMESTAMP,
+                "modified": firestore.SERVER_TIMESTAMP
+            }
+            cloud_storage.update_generation_status(user_id, file_uid, error_data, "images")
+        except:
+            pass  # If we can't update error status, at least don't crash
     
     return image_urls
 
@@ -322,9 +345,13 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         
         # Update with final generation data including URL
         generation_data = {
+            "generated": True,
+            "error": False,
             "video_url": video_url,
             "status": "completed",
-            "fps": fps
+            "fps": fps,
+            "completed_at": firestore.SERVER_TIMESTAMP,
+            "modified": firestore.SERVER_TIMESTAMP
         }
         cloud_storage.update_generation_status(user_id, file_uid, generation_data, "videos")
         
@@ -342,8 +369,13 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         
         # Update Firestore with error status
         error_data = {
+            "generated": False,
+            "error": True,
             "status": "failed",
-            "error": str(e)
+            "error_message": str(e),
+            "error_type": type(e).__name__,
+            "failed_at": firestore.SERVER_TIMESTAMP,
+            "modified": firestore.SERVER_TIMESTAMP
         }
         cloud_storage.update_generation_status(user_id, file_uid, error_data, "videos")
         
