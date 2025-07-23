@@ -50,8 +50,13 @@ class CloudStorageManager:
     
     def _initialize_firebase(self):
         """Initialize Firebase Admin SDK"""
+        print(f"🔧 [DEBUG] Initializing Firebase...")
+        
         service_account_key = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
         bucket_name = os.environ.get("FIREBASE_STORAGE_BUCKET")
+        
+        print(f"🔧 [DEBUG] Service account key present: {bool(service_account_key)}")
+        print(f"🔧 [DEBUG] Bucket name: {bucket_name}")
         
         if not service_account_key or not bucket_name:
             raise ValueError("Missing FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_STORAGE_BUCKET")
@@ -59,23 +64,29 @@ class CloudStorageManager:
         # Parse service account key (can be JSON string or file path)
         if service_account_key.startswith("{"):
             # JSON string
+            print(f"🔧 [DEBUG] Using service account JSON string")
             service_account_info = json.loads(service_account_key)
             cred = credentials.Certificate(service_account_info)
         else:
             # File path
+            print(f"🔧 [DEBUG] Using service account file path: {service_account_key}")
             cred = credentials.Certificate(service_account_key)
         
         # Initialize Firebase app if not already done
         if not firebase_admin._apps:
+            print(f"🔧 [DEBUG] Initializing new Firebase app")
             self.firebase_app = firebase_admin.initialize_app(cred, {
                 'storageBucket': bucket_name
             })
         else:
+            print(f"🔧 [DEBUG] Using existing Firebase app")
             self.firebase_app = firebase_admin.get_app()
         
         self.storage_bucket = storage.bucket()
         self.firestore_db = firestore.client()
         print(f"✅ Firebase initialized with bucket: {bucket_name}")
+        print(f"🔧 [DEBUG] Storage bucket object: {type(self.storage_bucket)}")
+        print(f"🔧 [DEBUG] Firestore client object: {type(self.firestore_db)}")
     
     def upload_file(self, file_data: bytes, filename: str, content_type: str, 
                    user_id: str, file_uid: str) -> str:
@@ -215,13 +226,19 @@ def save_and_upload_images_cloud(images: List, job_id: str, user_id: str,
     Returns:
         List of public URLs to access the images
     """
+    print(f"🔧 [DEBUG] save_and_upload_images_cloud called with {len(images)} images, user_id={user_id}, file_uid={file_uid}")
+    print(f"🔧 [DEBUG] Cloud storage type: {cloud_storage.storage_type}")
+    
     image_urls = []
     
     for index, image in enumerate(images):
+        print(f"🔧 [DEBUG] Processing image {index+1}/{len(images)}")
+        
         # Convert PIL image to bytes
         img_buffer = BytesIO()
         image.save(img_buffer, format='PNG')
         img_bytes = img_buffer.getvalue()
+        print(f"🔧 [DEBUG] Image {index} converted to {len(img_bytes)} bytes")
         
         # For multiple images, append index to file_uid
         if len(images) > 1:
@@ -231,6 +248,7 @@ def save_and_upload_images_cloud(images: List, job_id: str, user_id: str,
         
         # Upload to cloud storage
         try:
+            print(f"🔧 [DEBUG] Uploading image {index} with file_uid={image_file_uid}")
             image_url = cloud_storage.upload_file(
                 file_data=img_bytes,
                 filename="",  # Not used anymore
@@ -238,12 +256,14 @@ def save_and_upload_images_cloud(images: List, job_id: str, user_id: str,
                 user_id=user_id,
                 file_uid=image_file_uid
             )
+            print(f"✅ [DEBUG] Image {index} uploaded successfully: {image_url}")
             image_urls.append(image_url)
             
             # Mark image as ready in Firestore
             cloud_storage.mark_media_ready(user_id, image_file_uid, "images")
             
         except Exception as e:
+            print(f"❌ [DEBUG] Failed to upload image {index}: {type(e).__name__}: {e}")
             print(f"❌ Failed to upload image {index}: {e}")
             # Update Firestore with error status for this image
             error_data = {
@@ -312,6 +332,9 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
     import tempfile
     from diffusers.utils import export_to_video
     
+    print(f"🔧 [DEBUG] save_and_upload_video_cloud called with {len(video_frames)} frames, user_id={user_id}, file_uid={file_uid}")
+    print(f"🔧 [DEBUG] Cloud storage type: {cloud_storage.storage_type}")
+    
     temp_video_path = None
     video_bytes = None
     
@@ -320,6 +343,7 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
             temp_video_path = temp_file.name
         
+        print(f"🔧 [DEBUG] Exporting video to temp path: {temp_video_path}")
         # Export video using diffusers utility
         export_to_video(video_frames, temp_video_path, fps=fps)
         
@@ -327,11 +351,14 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
         with open(temp_video_path, 'rb') as video_file:
             video_bytes = video_file.read()
         
+        print(f"🔧 [DEBUG] Video exported to {len(video_bytes)} bytes")
+        
         # Clean up temp file
         os.unlink(temp_video_path)
         temp_video_path = None  # Mark as cleaned up
         
         # Upload to cloud storage
+        print(f"🔧 [DEBUG] Uploading video to cloud storage")
         video_url = cloud_storage.upload_file(
             file_data=video_bytes,
             filename="",  # Not used anymore
@@ -339,6 +366,8 @@ def save_and_upload_video_cloud(video_frames: List, job_id: str, user_id: str,
             user_id=user_id,
             file_uid=file_uid
         )
+        
+        print(f"✅ [DEBUG] Video uploaded successfully: {video_url}")
         
         # Mark media as ready and update with final URL
         cloud_storage.mark_media_ready(user_id, file_uid, "videos")

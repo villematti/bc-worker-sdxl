@@ -209,11 +209,18 @@ def _save_and_upload_images(images, job_id, user_id=None, file_uid=None, use_clo
     if use_cloud_storage and user_id and file_uid:
         print(f"📤 Uploading {len(images)} images to cloud storage for user {user_id}")
         try:
-            return save_and_upload_images_cloud(images, job_id, user_id, file_uid)
+            print(f"🔧 [DEBUG] Calling save_and_upload_images_cloud with user_id={user_id}, file_uid={file_uid}")
+            result = save_and_upload_images_cloud(images, job_id, user_id, file_uid)
+            print(f"✅ [DEBUG] Cloud upload successful: {result}")
+            return result
         except Exception as e:
+            print(f"❌ [DEBUG] Cloud storage failed with exception: {type(e).__name__}: {e}")
             print(f"⚠️ Cloud storage failed, falling back to base64: {e}")
+    else:
+        print(f"🔧 [DEBUG] Not using cloud storage: use_cloud_storage={use_cloud_storage}, user_id={user_id}, file_uid={file_uid}")
     
     # Original base64/bucket upload logic (fallback)
+    print(f"📱 [DEBUG] Using fallback for images")
     os.makedirs(f"/{job_id}", exist_ok=True)
     image_urls = []
     for index, image in enumerate(images):
@@ -239,11 +246,18 @@ def _save_and_upload_video(video_frames, job_id, fps=15, user_id=None, file_uid=
     if use_cloud_storage and user_id and file_uid:
         print(f"📤 Uploading video to cloud storage for user {user_id}")
         try:
-            return save_and_upload_video_cloud(video_frames, job_id, user_id, file_uid, fps)
+            print(f"🔧 [DEBUG] Calling save_and_upload_video_cloud with user_id={user_id}, file_uid={file_uid}")
+            result = save_and_upload_video_cloud(video_frames, job_id, user_id, file_uid, fps)
+            print(f"✅ [DEBUG] Cloud upload successful: {result}")
+            return result
         except Exception as e:
+            print(f"❌ [DEBUG] Cloud storage failed with exception: {type(e).__name__}: {e}")
             print(f"⚠️ Cloud storage failed, falling back to base64: {e}")
+    else:
+        print(f"🔧 [DEBUG] Not using cloud storage: use_cloud_storage={use_cloud_storage}, user_id={user_id}, file_uid={file_uid}")
     
     # Original base64 logic (fallback)
+    print(f"📱 [DEBUG] Using base64 fallback for video")
     os.makedirs(f"/{job_id}", exist_ok=True)
     video_path = os.path.join(f"/{job_id}", "video.mp4")
     
@@ -271,6 +285,137 @@ def make_scheduler(name, config):
     }[name]
 
 
+def test_firebase_debug(job_input):
+    """Debug Firebase functionality in RunPod environment"""
+    
+    print("🔧 [RUNPOD DEBUG] Starting Firebase debug test...")
+    
+    # Test 1: Environment variables
+    print("\n🔧 [TEST 1] Environment Variables:")
+    firebase_key = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
+    firebase_bucket = os.environ.get("FIREBASE_STORAGE_BUCKET")
+    
+    print(f"FIREBASE_SERVICE_ACCOUNT_KEY present: {bool(firebase_key)}")
+    print(f"FIREBASE_STORAGE_BUCKET: {firebase_bucket}")
+    
+    if firebase_key:
+        try:
+            import json
+            key_data = json.loads(firebase_key)
+            print(f"✅ JSON key valid, project: {key_data.get('project_id')}")
+        except Exception as e:
+            print(f"❌ JSON key invalid: {e}")
+            return {"error": "Invalid Firebase JSON key"}
+    
+    # Test 2: Firebase imports and initialization
+    print("\n🔧 [TEST 2] Firebase Imports and Initialization:")
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, storage, firestore
+        print(f"✅ Firebase admin version: {firebase_admin.__version__}")
+    except ImportError as e:
+        print(f"❌ Firebase import failed: {e}")
+        return {"error": "Firebase admin not available"}
+    
+    # Test 3: Cloud storage initialization
+    print("\n🔧 [TEST 3] Cloud Storage Initialization:")
+    try:
+        from cloud_storage import cloud_storage
+        print(f"✅ Storage type: {cloud_storage.storage_type}")
+        print(f"✅ Storage bucket: {type(cloud_storage.storage_bucket)}")
+        print(f"✅ Firestore DB: {type(cloud_storage.firestore_db)}")
+        
+        if cloud_storage.storage_type != "firebase":
+            return {"error": f"Expected firebase storage, got: {cloud_storage.storage_type}"}
+            
+    except Exception as e:
+        print(f"❌ Cloud storage init failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Cloud storage initialization failed: {str(e)}"}
+    
+    # Test 4: Network connectivity
+    print("\n🔧 [TEST 4] Network Connectivity:")
+    try:
+        import requests
+        response = requests.get('https://firebase.googleapis.com', timeout=10)
+        print(f"✅ Firebase API reachable: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Network connectivity issue: {e}")
+        return {"error": f"Network connectivity failed: {str(e)}"}
+    
+    # Test 5: Simple upload test
+    print("\n🔧 [TEST 5] Simple Upload Test:")
+    try:
+        from PIL import Image
+        from io import BytesIO
+        
+        # Create tiny test image
+        test_image = Image.new('RGB', (5, 5), color='green')
+        img_buffer = BytesIO()
+        test_image.save(img_buffer, format='PNG')
+        img_bytes = img_buffer.getvalue()
+        
+        print(f"✅ Created test image: {len(img_bytes)} bytes")
+        
+        # Try direct upload
+        test_url = cloud_storage.upload_file(
+            file_data=img_bytes,
+            filename="runpod_test.png",
+            content_type="image/png",
+            user_id="runpod-debug",
+            file_uid="debug-test-001"
+        )
+        
+        print(f"✅ Upload successful: {test_url}")
+        
+        if test_url.startswith("https://"):
+            print("✅ Real Firebase URL returned")
+            success = True
+        else:
+            print("⚠️ Fallback URL returned (Firebase upload failed)")
+            success = False
+            
+    except Exception as e:
+        print(f"❌ Upload test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Upload test failed: {str(e)}"}
+    
+    # Test 6: Threading test
+    print("\n🔧 [TEST 6] Threading Test:")
+    import threading
+    print(f"✅ Active threads: {threading.active_count()}")
+    
+    def test_background_task():
+        print("✅ Background thread executed successfully")
+        
+    try:
+        thread = threading.Thread(target=test_background_task, daemon=True)
+        thread.start()
+        thread.join(timeout=5)  # Wait up to 5 seconds
+        
+        if thread.is_alive():
+            print("⚠️ Background thread still running")
+        else:
+            print("✅ Background thread completed")
+            
+    except Exception as e:
+        print(f"❌ Threading test failed: {e}")
+    
+    result = {
+        "status": "debug_complete",
+        "firebase_initialized": cloud_storage.storage_type == "firebase",
+        "upload_successful": success,
+        "test_url": test_url if 'test_url' in locals() else None,
+        "environment_ok": bool(firebase_key and firebase_bucket),
+        "message": "Firebase debug test completed - check logs for details"
+    }
+    
+    print(f"\n🔧 [RUNPOD DEBUG] Final result: {result}")
+    return result
+
+
 @torch.inference_mode()
 def generate_image(job):
     """
@@ -286,6 +431,10 @@ def generate_image(job):
         pprint.pprint(job, depth=4, compact=False)
 
     job_input = job["input"]
+
+    # Check for Firebase debug test
+    if job_input.get("test_firebase_debug"):
+        return test_firebase_debug(job_input)
 
     print("[generate_image] job['input'] payload:")
     try:
@@ -327,6 +476,9 @@ def generate_image(job):
     
     # Update Firestore status to "processing" immediately
     if use_cloud_storage and user_id and file_uid:
+        # Import firestore here to avoid circular import issues
+        from firebase_admin import firestore
+        
         # Determine media type from job input
         media_type = "videos" if job_input.get("num_frames") else "images"
         
