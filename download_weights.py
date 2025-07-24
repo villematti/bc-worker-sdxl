@@ -31,51 +31,102 @@ def get_hf_token():
 
 def get_diffusion_pipelines():
     """
-    Fetches the Stable Diffusion XL pipelines and optionally Wan2.1 T2V pipeline from the HuggingFace model hub.
+    Loads all models from local RunPod volume storage - no internet downloads.
     """
-    token = get_hf_token()
-    common_args = {
-        "torch_dtype": torch.float16,
-        "variant": "fp16",
-        "use_safetensors": True,
-        "use_auth_token": token,
-    }
-    common_args_no_float16 = {
-        "torch_dtype": torch.float16,
-        "use_safetensors": True,
-        "use_auth_token": token,
-    }
+    
+    # Local model paths on RunPod volume
+    local_base_path = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0"
+    local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"  
+    local_refiner_path = "/runpod-volume/stable-diffusion-xl-refiner-1.0"
+    local_inpaint_path = "/runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1"
 
-    # SDXL models (essential)
-    print("Downloading SDXL models...")
-    pipe = fetch_pretrained_model(
-        StableDiffusionXLPipeline,
-        "stabilityai/stable-diffusion-xl-base-1.0",
-        **common_args,
-    )
-    vae = fetch_pretrained_model(
-        AutoencoderKL, "madebyollin/sdxl-vae-fp16-fix", **{"torch_dtype": torch.float16, "use_auth_token": token}
-    )
-    refiner = fetch_pretrained_model(
-        StableDiffusionXLImg2ImgPipeline,
-        "stabilityai/stable-diffusion-xl-refiner-1.0",
-        **common_args,
-    )
-    inpaint = fetch_pretrained_model(
-        StableDiffusionXLInpaintPipeline,  # Use specific SDXL inpaint pipeline
-        "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",  # Changed to SDXL inpainting
-        **common_args,  # Use common_args instead of no_float16 for SDXL consistency
-    )
+    # SDXL Base Pipeline
+    print("Loading SDXL Base Pipeline...")
+    try:
+        if os.path.exists(local_base_path):
+            print(f"📁 Found local SDXL Base at: {local_base_path}")
+            pipe = StableDiffusionXLPipeline.from_pretrained(
+                local_base_path,
+                torch_dtype=torch.float16,
+                variant="fp16",
+                use_safetensors=True,
+                local_files_only=True,  # Force local loading
+            )
+            print("✅ SDXL Base loaded successfully from local storage!")
+        else:
+            print(f"❌ Local SDXL Base not found at: {local_base_path}")
+            raise FileNotFoundError(f"SDXL Base model not found at {local_base_path}")
+    except Exception as e:
+        print(f"❌ Failed to load SDXL Base: {e}")
+        raise
 
-    # Wan2.1-T2V-1.3B models (optional - load from local if available)
+    # VAE
+    print("Loading SDXL VAE...")
+    try:
+        if os.path.exists(local_vae_path):
+            print(f"📁 Found local VAE at: {local_vae_path}")
+            vae = AutoencoderKL.from_pretrained(
+                local_vae_path,
+                torch_dtype=torch.float16,
+                local_files_only=True,  # Force local loading
+            )
+            print("✅ SDXL VAE loaded successfully from local storage!")
+        else:
+            print(f"❌ Local VAE not found at: {local_vae_path}")
+            raise FileNotFoundError(f"VAE model not found at {local_vae_path}")
+    except Exception as e:
+        print(f"❌ Failed to load VAE: {e}")
+        raise
+
+    # SDXL Refiner Pipeline
+    print("Loading SDXL Refiner Pipeline...")
+    try:
+        if os.path.exists(local_refiner_path):
+            print(f"📁 Found local SDXL Refiner at: {local_refiner_path}")
+            refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
+                local_refiner_path,
+                torch_dtype=torch.float16,
+                variant="fp16",
+                use_safetensors=True,
+                local_files_only=True,  # Force local loading
+            )
+            print("✅ SDXL Refiner loaded successfully from local storage!")
+        else:
+            print(f"❌ Local SDXL Refiner not found at: {local_refiner_path}")
+            raise FileNotFoundError(f"SDXL Refiner model not found at {local_refiner_path}")
+    except Exception as e:
+        print(f"❌ Failed to load SDXL Refiner: {e}")
+        raise
+
+    # SDXL Inpaint Pipeline
+    print("Loading SDXL Inpaint Pipeline...")
+    try:
+        if os.path.exists(local_inpaint_path):
+            print(f"📁 Found local SDXL Inpaint at: {local_inpaint_path}")
+            inpaint = StableDiffusionXLInpaintPipeline.from_pretrained(
+                local_inpaint_path,
+                torch_dtype=torch.float16,
+                variant="fp16",
+                use_safetensors=True,
+                local_files_only=True,  # Force local loading
+            )
+            print("✅ SDXL Inpaint loaded successfully from local storage!")
+        else:
+            print(f"❌ Local SDXL Inpaint not found at: {local_inpaint_path}")
+            raise FileNotFoundError(f"SDXL Inpaint model not found at {local_inpaint_path}")
+    except Exception as e:
+        print(f"❌ Failed to load SDXL Inpaint: {e}")
+        raise
+
+    # Wan2.1-T2V-14B models (load from local volume)
     wan_vae = None
     wan_t2v = None
     
     if os.environ.get("DOWNLOAD_WAN2_MODEL", "false").lower() == "true":
-        print("Loading Wan2.1-T2V-1.3B model...")
+        print("Loading Wan2.1-T2V-14B model...")
         
-        # Check for local model path
-        local_wan_path = "/runpod-volume/Wan2.1-T2V-1.3B-Diffusers"
+        # Check for local model path (updated to 14B)
+        local_wan_path = "/runpod-volume/Wan2.1-T2V-14B-Diffusers"
         
         try:
             if os.path.exists(local_wan_path):
@@ -97,34 +148,15 @@ def get_diffusion_pipelines():
                     use_safetensors=True,
                     local_files_only=True,  # Force local loading
                 )
-                print("✅ Wan2.1-T2V-1.3B loaded successfully from local storage!")
+                print("✅ Wan2.1-T2V-14B loaded successfully from local storage!")
             else:
-                print(f"⚠️ Local path not found: {local_wan_path}")
-                print("🌐 Attempting to download from Hugging Face...")
-                
-                # Fallback to downloading from HuggingFace
-                wan_model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
-                
-                wan_vae = fetch_pretrained_model(
-                    AutoencoderKLWan,
-                    wan_model_id,
-                    subfolder="vae",
-                    torch_dtype=torch.float32,
-                    use_auth_token=token,
-                )
-                
-                wan_t2v = fetch_pretrained_model(
-                    WanPipeline,
-                    wan_model_id,
-                    vae=wan_vae,
-                    torch_dtype=torch.bfloat16,
-                    use_safetensors=True,
-                    use_auth_token=token,
-                )
-                print("✅ Wan2.1-T2V-1.3B downloaded successfully!")
+                print(f"❌ Local Wan2.1-14B not found at: {local_wan_path}")
+                print("🔄 Continuing with SDXL-only functionality")
+                wan_vae = None
+                wan_t2v = None
                 
         except Exception as e:
-            print(f"⚠️ Wan2.1 load failed: {e}")
+            print(f"⚠️ Wan2.1-14B load failed: {e}")
             print("🔄 Continuing with SDXL-only functionality")
             wan_vae = None
             wan_t2v = None
@@ -135,29 +167,35 @@ def get_diffusion_pipelines():
 
 
 if __name__ == "__main__":
-    print("Downloading SDXL weights and Wan2.1-T2V-14B pipelines...")
+    print("Loading SDXL and Wan2.1-T2V-14B pipelines from local RunPod volume...")
     
     try:
-        # Download with retry logic
+        # Load with retry logic
         max_retries = 2
         for attempt in range(max_retries):
             try:
                 get_diffusion_pipelines()
-                print("✅ All models downloaded successfully!")
+                print("✅ All models loaded successfully from local storage!")
                 break
             except Exception as e:
-                print(f"❌ Download attempt {attempt + 1} failed: {e}")
+                print(f"❌ Load attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
-                    print("🔄 Retrying model download...")
+                    print("🔄 Retrying model loading...")
                     import time
-                    time.sleep(10)  # Wait 10 seconds before retry
+                    time.sleep(5)  # Wait 5 seconds before retry (shorter since it's local)
                 else:
                     print("💥 Final attempt failed!")
                     raise
                     
     except Exception as e:
-        print(f"💥 Model download failed completely: {e}")
-        print("🔍 This might be a temporary issue. Try rebuilding.")
+        print(f"💥 Model loading failed completely: {e}")
+        print("🔍 Check that all models are present in /runpod-volume/")
+        print("Expected paths:")
+        print("  /runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0")
+        print("  /runpod-volume/sdxl-vae-fp16-fix")  
+        print("  /runpod-volume/stable-diffusion-xl-refiner-1.0")
+        print("  /runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1")
+        print("  /runpod-volume/Wan2.1-T2V-14B-Diffusers")
         # Exit with error code
         import sys
         sys.exit(1)

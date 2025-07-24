@@ -38,17 +38,6 @@ from cloud_storage import (
 
 torch.cuda.empty_cache()
 
-# ---- Helper function for local/hub loading ----
-def load_wan_from_local_or_hub(model_class, model_id, local_path, **kwargs):
-    """Try to load from local path first, fallback to HuggingFace"""
-    if os.path.exists(local_path):
-        print(f"📁 Loading {model_id} from local: {local_path}")
-        kwargs["local_files_only"] = True
-        return model_class.from_pretrained(local_path, **kwargs)
-    else:
-        print(f"🌐 Loading {model_id} from HuggingFace hub")
-        return model_class.from_pretrained(model_id, **kwargs)
-
 # ---- Add this function after your imports ----
 def decode_base64_image(data_uri):
     """
@@ -74,13 +63,20 @@ class ModelHandler:
         self.load_models()
 
     def load_base(self):
+        # Load from local RunPod volume
+        local_base_path = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0"
+        local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"
+        
+        print(f"📁 Loading SDXL Base from: {local_base_path}")
+        print(f"📁 Loading VAE from: {local_vae_path}")
+        
         vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix",
+            local_vae_path,
             torch_dtype=torch.float16,
             local_files_only=True,
         )
         base_pipe = StableDiffusionXLPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0",
+            local_base_path,
             vae=vae,
             torch_dtype=torch.float16,
             variant="fp16",
@@ -90,16 +86,24 @@ class ModelHandler:
         ).to("cuda")
         base_pipe.enable_xformers_memory_efficient_attention()
         base_pipe.enable_model_cpu_offload()
+        print("✅ SDXL Base loaded from local storage")
         return base_pipe
 
     def load_refiner(self):
+        # Load from local RunPod volume
+        local_refiner_path = "/runpod-volume/stable-diffusion-xl-refiner-1.0"
+        local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"
+        
+        print(f"📁 Loading SDXL Refiner from: {local_refiner_path}")
+        print(f"📁 Loading VAE from: {local_vae_path}")
+        
         vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix",
+            local_vae_path,
             torch_dtype=torch.float16,
             local_files_only=True,
         )
         refiner_pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-refiner-1.0",
+            local_refiner_path,
             vae=vae,
             torch_dtype=torch.float16,
             variant="fp16",
@@ -109,16 +113,24 @@ class ModelHandler:
         ).to("cuda")
         refiner_pipe.enable_xformers_memory_efficient_attention()
         refiner_pipe.enable_model_cpu_offload()
+        print("✅ SDXL Refiner loaded from local storage")
         return refiner_pipe
 
     def load_inpaint(self):  # <-- NEW
+        # Load from local RunPod volume
+        local_inpaint_path = "/runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1"
+        local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"
+        
+        print(f"📁 Loading SDXL Inpaint from: {local_inpaint_path}")
+        print(f"📁 Loading VAE from: {local_vae_path}")
+        
         vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix",
+            local_vae_path,
             torch_dtype=torch.float16,
             local_files_only=True,
         )
         inpaint_pipe = StableDiffusionXLInpaintPipeline.from_pretrained(
-            "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",  # <-- CHANGED to SDXL inpainting
+            local_inpaint_path,
             vae=vae,
             torch_dtype=torch.float16,
             variant="fp16",
@@ -128,37 +140,40 @@ class ModelHandler:
         ).to("cuda")
         inpaint_pipe.enable_xformers_memory_efficient_attention()
         inpaint_pipe.enable_model_cpu_offload()
+        print("✅ SDXL Inpaint loaded from local storage")
         return inpaint_pipe
 
     def load_wan_t2v(self):  # <-- NEW
-        """Load Wan2.1-T2V-1.3B pipeline optimized for RunPod's 48GB VRAM"""
+        """Load Wan2.1-T2V-14B pipeline optimized for RunPod's 48GB VRAM"""
         
-        local_wan_path = "/runpod-volume/Wan2.1-T2V-1.3B-Diffusers"
-        wan_model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+        local_wan_path = "/runpod-volume/Wan2.1-T2V-14B-Diffusers"
         
         try:
-            print("Loading Wan2.1-T2V-1.3B pipeline...")
+            print("Loading Wan2.1-T2V-14B pipeline...")
             print(f"  📁 Local path: {local_wan_path}")
-            print(f"  🌐 Model ID: {wan_model_id}")
             
-            # Load VAE
-            wan_vae = load_wan_from_local_or_hub(
-                AutoencoderKLWan,
-                f"{wan_model_id}/vae",
+            if not os.path.exists(local_wan_path):
+                print(f"❌ Local path not found: {local_wan_path}")
+                return None
+            
+            print(f"📁 Found local Wan2.1-14B at: {local_wan_path}")
+            
+            # Load VAE from local path only
+            wan_vae = AutoencoderKLWan.from_pretrained(
                 local_wan_path,
                 subfolder="vae",
                 torch_dtype=torch.float32,
+                local_files_only=True,  # Force local loading only
             )
             print("  ✅ VAE loaded successfully")
             
-            # Load pipeline
-            wan_t2v = load_wan_from_local_or_hub(
-                WanPipeline,
-                wan_model_id,
+            # Load pipeline from local path only
+            wan_t2v = WanPipeline.from_pretrained(
                 local_wan_path,
                 vae=wan_vae,
                 torch_dtype=torch.bfloat16,
                 use_safetensors=True,
+                local_files_only=True,  # Force local loading only
             ).to("cuda")
             print("  ✅ Main pipeline loaded successfully")
             
@@ -180,11 +195,11 @@ class ModelHandler:
             except Exception as xformers_error:
                 print(f"  ⚠️ XFormers not available: {xformers_error}")
             
-            print("✅ Wan2.1-T2V-1.3B pipeline loaded successfully!")
+            print("✅ Wan2.1-T2V-14B pipeline loaded successfully!")
             return wan_t2v
             
         except Exception as e:
-            print(f"❌ Failed to load Wan2.1 pipeline: {e}")
+            print(f"❌ Failed to load Wan2.1-14B pipeline: {e}")
             print(f"   Error type: {type(e).__name__}")
             import traceback
             traceback.print_exc()
