@@ -67,42 +67,69 @@ def get_diffusion_pipelines():
         **common_args,  # Use common_args instead of no_float16 for SDXL consistency
     )
 
-    # Wan2.1-T2V-14B models (optional - only if environment variable is set)
+    # Wan2.1-T2V-1.3B models (optional - load from local if available)
     wan_vae = None
     wan_t2v = None
     
     if os.environ.get("DOWNLOAD_WAN2_MODEL", "false").lower() == "true":
-        print("Downloading Wan2.1-T2V-1.3B model components...")
+        print("Loading Wan2.1-T2V-1.3B model...")
+        
+        # Check for local model path
+        local_wan_path = "/runpod-volume/Wan2.1-T2V-1.3B-Diffusers"
+        
         try:
-            # Use the smaller 1.3B model instead of 14B
-            wan_model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
-            
-            # Download Wan VAE separately for better control
-            wan_vae = fetch_pretrained_model(
-                AutoencoderKLWan,
-                wan_model_id,
-                subfolder="vae",
-                torch_dtype=torch.float32,  # Keep VAE as float32 for stability
-                use_auth_token=token,
-            )
-            
-            # Download main Wan T2V pipeline (1.3B version)
-            wan_t2v = fetch_pretrained_model(
-                WanPipeline,
-                wan_model_id,
-                vae=wan_vae,
-                torch_dtype=torch.bfloat16,  # Use bfloat16 for 1.3B model
-                use_safetensors=True,
-                use_auth_token=token,
-            )
-            print("✅ Wan2.1-T2V-1.3B downloaded successfully!")
+            if os.path.exists(local_wan_path):
+                print(f"📁 Found local Wan2.1 model at: {local_wan_path}")
+                
+                # Load Wan VAE from local path
+                wan_vae = AutoencoderKLWan.from_pretrained(
+                    local_wan_path,
+                    subfolder="vae",
+                    torch_dtype=torch.float32,
+                    local_files_only=True,  # Force local loading
+                )
+                
+                # Load main Wan T2V pipeline from local path
+                wan_t2v = WanPipeline.from_pretrained(
+                    local_wan_path,
+                    vae=wan_vae,
+                    torch_dtype=torch.bfloat16,
+                    use_safetensors=True,
+                    local_files_only=True,  # Force local loading
+                )
+                print("✅ Wan2.1-T2V-1.3B loaded successfully from local storage!")
+            else:
+                print(f"⚠️ Local path not found: {local_wan_path}")
+                print("🌐 Attempting to download from Hugging Face...")
+                
+                # Fallback to downloading from HuggingFace
+                wan_model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+                
+                wan_vae = fetch_pretrained_model(
+                    AutoencoderKLWan,
+                    wan_model_id,
+                    subfolder="vae",
+                    torch_dtype=torch.float32,
+                    use_auth_token=token,
+                )
+                
+                wan_t2v = fetch_pretrained_model(
+                    WanPipeline,
+                    wan_model_id,
+                    vae=wan_vae,
+                    torch_dtype=torch.bfloat16,
+                    use_safetensors=True,
+                    use_auth_token=token,
+                )
+                print("✅ Wan2.1-T2V-1.3B downloaded successfully!")
+                
         except Exception as e:
-            print(f"⚠️ Wan2.1 download failed: {e}")
+            print(f"⚠️ Wan2.1 load failed: {e}")
             print("🔄 Continuing with SDXL-only functionality")
             wan_vae = None
             wan_t2v = None
     else:
-        print("ℹ️ Skipping Wan2.1 download (DOWNLOAD_WAN2_MODEL not set to 'true')")
+        print("ℹ️ Skipping Wan2.1 (DOWNLOAD_WAN2_MODEL not set to 'true')")
 
     return pipe, refiner, vae, inpaint, wan_vae, wan_t2v
 

@@ -38,6 +38,17 @@ from cloud_storage import (
 
 torch.cuda.empty_cache()
 
+# ---- Helper function for local/hub loading ----
+def load_wan_from_local_or_hub(model_class, model_id, local_path, **kwargs):
+    """Try to load from local path first, fallback to HuggingFace"""
+    if os.path.exists(local_path):
+        print(f"📁 Loading {model_id} from local: {local_path}")
+        kwargs["local_files_only"] = True
+        return model_class.from_pretrained(local_path, **kwargs)
+    else:
+        print(f"🌐 Loading {model_id} from HuggingFace hub")
+        return model_class.from_pretrained(model_id, **kwargs)
+
 # ---- Add this function after your imports ----
 def decode_base64_image(data_uri):
     """
@@ -122,77 +133,55 @@ class ModelHandler:
     def load_wan_t2v(self):  # <-- NEW
         """Load Wan2.1-T2V-1.3B pipeline optimized for RunPod's 48GB VRAM"""
         
-        wan_model_path = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+        local_wan_path = "/runpod-volume/Wan2.1-T2V-1.3B-Diffusers"
+        wan_model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
         
         try:
             print("Loading Wan2.1-T2V-1.3B pipeline...")
-            print(f"  📁 Model path: {wan_model_path}")
+            print(f"  📁 Local path: {local_wan_path}")
+            print(f"  🌐 Model ID: {wan_model_id}")
             
-            model_id = wan_model_path
+            # Load VAE
+            wan_vae = load_wan_from_local_or_hub(
+                AutoencoderKLWan,
+                f"{wan_model_id}/vae",
+                local_wan_path,
+                subfolder="vae",
+                torch_dtype=torch.float32,
+            )
+            print("  ✅ VAE loaded successfully")
             
-            # Try loading with new transformer architecture first
-            try:
-                print("  🔄 Attempting to load with transformer architecture...")
-                
-                # Load VAE separately for better control
-                vae = AutoencoderKLWan.from_pretrained(
-                    model_id,
-                    subfolder="vae",
-                    torch_dtype=torch.float32,  # Keep VAE as float32 for stability
-                    local_files_only=True,
-                )
-                print("  ✅ VAE loaded successfully")
-                
-                # Load main pipeline with official 1.3B settings
-                wan_pipe = WanPipeline.from_pretrained(
-                    model_id,
-                    vae=vae,
-                    torch_dtype=torch.bfloat16,  # Use bfloat16 for 1.3B model
-                    use_safetensors=True,
-                    local_files_only=True,
-                ).to("cuda")
-                print("  ✅ Main pipeline loaded successfully")
-                
-            except Exception as load_error:
-                print(f"  ⚠️ Primary loading method failed: {load_error}")
-                print("  🔄 Trying alternative loading approach...")
-                
-                # Try loading without local_files_only constraint
-                vae = AutoencoderKLWan.from_pretrained(
-                    model_id,
-                    subfolder="vae",
-                    torch_dtype=torch.float32,
-                )
-                print("  ✅ VAE loaded with network access")
-                
-                wan_pipe = WanPipeline.from_pretrained(
-                    model_id,
-                    vae=vae,
-                    torch_dtype=torch.bfloat16,
-                    use_safetensors=True,
-                ).to("cuda")
-                print("  ✅ Pipeline loaded with network access")
+            # Load pipeline
+            wan_t2v = load_wan_from_local_or_hub(
+                WanPipeline,
+                wan_model_id,
+                local_wan_path,
+                vae=wan_vae,
+                torch_dtype=torch.bfloat16,
+                use_safetensors=True,
+            ).to("cuda")
+            print("  ✅ Main pipeline loaded successfully")
             
             # Enable optimizations for memory efficiency (following official recommendations)
-            wan_pipe.enable_attention_slicing()
+            wan_t2v.enable_attention_slicing()
             print("  ✅ Attention slicing enabled")
             
             # Try to enable model CPU offloading for memory efficiency (like --offload_model True)
             try:
-                wan_pipe.enable_model_cpu_offload()
+                wan_t2v.enable_model_cpu_offload()
                 print("  ✅ Model CPU offloading enabled for memory efficiency")
             except Exception as offload_error:
                 print(f"  ⚠️ Model CPU offloading not available: {offload_error}")
             
             # Enable xformers if available
             try:
-                wan_pipe.enable_xformers_memory_efficient_attention()
+                wan_t2v.enable_xformers_memory_efficient_attention()
                 print("  ✅ XFormers attention enabled for Wan2.1")
             except Exception as xformers_error:
                 print(f"  ⚠️ XFormers not available: {xformers_error}")
             
             print("✅ Wan2.1-T2V-1.3B pipeline loaded successfully!")
-            return wan_pipe
+            return wan_t2v
             
         except Exception as e:
             print(f"❌ Failed to load Wan2.1 pipeline: {e}")

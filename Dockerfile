@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # install python 3.11 and pip
 ENV DEBIAN_FRONTEND=noninteractive
-# ENV DOWNLOAD_WAN2_MODEL=true  # Commented out for now
+ENV DOWNLOAD_WAN2_MODEL=true
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
