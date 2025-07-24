@@ -50,7 +50,6 @@ def create_image_request_with_cloud_storage():
         "height": 1024,
         "num_inference_steps": 30,
         "guidance_scale": 7.5,
-        "num_images": 2,  # Generate 2 images
         "seed": 123,
         
         # NEW: Cloud storage and database integration

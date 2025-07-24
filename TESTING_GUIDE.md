@@ -56,7 +56,6 @@
     "use_cloud_storage": true,
     "width": 512,
     "height": 512,
-    "num_images_per_prompt": 3,
     "num_inference_steps": 15,
     "guidance_scale": 8.0
   }

@@ -1,7 +1,11 @@
+# ============================================================================
+# UNIFIED INPUT SCHEMA - HANDLES ALL TASK TYPES
+# ============================================================================
+
 INPUT_SCHEMA = {
     'prompt': {
         'type': str,
-        'required': False,
+        'required': True,  # Fixed: prompt should be required
     },
     'negative_prompt': {
         'type': str,
@@ -11,12 +15,14 @@ INPUT_SCHEMA = {
     'height': {
         'type': int,
         'required': False,
-        'default': 1024
+        'default': 1024,
+        'constraints': lambda x: x in [512, 768, 1024, 1152, 1344, 1536]
     },
     'width': {
         'type': int,
         'required': False,
-        'default': 1024
+        'default': 1024,
+        'constraints': lambda x: x in [512, 768, 1024, 1152, 1344, 1536]
     },
     'seed': {
         'type': int,
@@ -26,27 +32,32 @@ INPUT_SCHEMA = {
     'scheduler': {
         'type': str,
         'required': False,
-        'default': 'DDIM'
+        'default': 'DDIM',
+        'constraints': lambda x: x in ['PNDM', 'KLMS', 'DDIM', 'K_EULER', 'DPMSolverMultistep', 'K_EULER_ANCESTRAL', 'DPMSolverSinglestep']
     },
     'num_inference_steps': {
         'type': int,
         'required': False,
-        'default': 25
+        'default': 25,
+        'constraints': lambda x: 10 <= x <= 100
     },
     'refiner_inference_steps': {
         'type': int,
         'required': False,
-        'default': 50
+        'default': 50,
+        'constraints': lambda x: 10 <= x <= 100
     },
     'guidance_scale': {
         'type': float,
         'required': False,
-        'default': 7.5
+        'default': 7.5,
+        'constraints': lambda x: 1.0 <= x <= 20.0
     },
     'strength': {
         'type': float,
         'required': False,
-        'default': 0.3
+        'default': 0.3,
+        'constraints': lambda x: 0.1 <= x <= 1.0
     },
     'image_url': {
         'type': str,
@@ -58,53 +69,17 @@ INPUT_SCHEMA = {
         'required': False,
         'default': None
     },
-    'num_images': {
-        'type': int,
-        'required': False,
-        'default': 1,
-        'constraints': lambda img_count: 3 > img_count > 0
-    },
     'high_noise_frac': {
         'type': float,
         'required': False,
-        'default': None
+        'default': None,
+        'constraints': lambda x: x is None or (0.0 <= x <= 1.0)
     },
-    # Video generation parameters for Wan2.1-T2V-14B
     'task_type': {
         'type': str,
         'required': False,
         'default': 'text2img',
         'constraints': lambda x: x in ['text2img', 'img2img', 'inpaint', 'text2video']
-    },
-    'video_height': {
-        'type': int,
-        'required': False,
-        'default': 480,
-        'constraints': lambda x: x in [480, 720]  # 1.3B model supports both (720p less stable)
-    },
-    'video_width': {
-        'type': int,
-        'required': False,
-        'default': 832,  # Official default for 1.3B model
-        'constraints': lambda x: x in [832, 1280]  # 832x480 or 1280x720
-    },
-    'num_frames': {
-        'type': int,
-        'required': False,
-        'default': 81,  # Official default for 1.3B model
-        'constraints': lambda x: 16 <= x <= 81  # Reasonable range for 1.3B
-    },
-    'video_guidance_scale': {
-        'type': float,
-        'required': False,
-        'default': 5.0,  # Official default for 1.3B model
-        'constraints': lambda x: 1.0 <= x <= 20.0
-    },
-    'fps': {
-        'type': int,
-        'required': False,
-        'default': 15,  # Official default for video export
-        'constraints': lambda x: 6 <= x <= 30
     },
     # Cloud storage and database integration
     'user_id': {
@@ -121,5 +96,32 @@ INPUT_SCHEMA = {
         'type': bool,
         'required': False,
         'default': False
+    },
+    # VIDEO PARAMETERS (for text2video task_type only)
+    'video_height': {
+        'type': int,
+        'required': False,
+        'default': 480,  # Fixed: all videos are 480P
+    },
+    'video_width': {
+        'type': int,
+        'required': False,
+        'default': 832,  # Fixed: all videos are 832 width
+    },
+    'num_frames': {
+        'type': int,
+        'required': False,
+        'default': None,  # Only set for video requests - NO DEFAULT!
+        'constraints': lambda x: x is None or (16 <= x <= 81)
+    },
+    'video_guidance_scale': {
+        'type': float,
+        'required': False,
+        'default': 5.0,  # Fixed: recommended value from docs
+    },
+    'fps': {
+        'type': int,
+        'required': False,
+        'default': 15,  # Fixed: all videos are 15 FPS
     },
 }

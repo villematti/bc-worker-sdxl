@@ -39,8 +39,8 @@ test_payloads = {
         "task_type": "text2video", 
         "prompt": "A dragon flying through clouds, majestic and powerful, fantasy art style",
         "negative_prompt": "blurry, low quality, distorted, ugly, bad anatomy, static",
-        "video_height": 720,
-        "video_width": 1280,  # Highest supported resolution
+        "video_height": 480,
+        "video_width": 832,  # Optimal resolution for 1.3B model
         "num_frames": 25,     # Keep frames reasonable for 720p
         "video_guidance_scale": 8.0,
         "fps": 15,

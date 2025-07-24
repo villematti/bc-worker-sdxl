@@ -34,7 +34,6 @@ Content-Type: application/json
     // Optional parameters
     "width": 512,
     "height": 512,
-    // "num_images_per_prompt": 1,
     "num_inference_steps": 20,
     "guidance_scale": 7.5,
     "negative_prompt": "blurry, low quality",
@@ -58,7 +57,6 @@ Content-Type: application/json
 
 ### **Optional Parameters:**
 - `width/height` (int): Image dimensions (256-1024)
-- `num_images_per_prompt` (int): Number of images to generate (1-4)
 - `num_inference_steps` (int): Quality vs speed tradeoff (10-50)
 - `guidance_scale` (float): How closely to follow prompt (1.0-20.0)
 - `negative_prompt` (string): What to avoid in generation

@@ -16,8 +16,8 @@ Your SDXL worker has been successfully integrated with **Wan2.1-T2V-14B**, the h
 ```python
 # New video parameters in schemas.py
 'task_type': 'text2video'          # Triggers video generation
-'video_height': 480 or 720         # Video resolution
-'video_width': 832 or 1280         # Corresponding width
+'video_height': 480                # Video resolution (480 only for 1.3B model)
+'video_width': 832                 # Corresponding width (832 only)
 'num_frames': 16-121               # Frame count (default: 81)
 'video_guidance_scale': 5.0        # Recommended for 14B
 'fps': 10-30                       # Frame rate (default: 15)
@@ -47,8 +47,8 @@ imageio-ffmpeg          # Video codecs
     "task_type": "text2video",
     "prompt": "A majestic eagle soaring through mountain peaks, cinematic, high quality",
     "negative_prompt": "blurry, low quality, static, still image",
-    "video_height": 720,
-    "video_width": 1280,
+    "video_height": 480,
+    "video_width": 832,
     "num_frames": 81,
     "video_guidance_scale": 5.0,
     "fps": 15,

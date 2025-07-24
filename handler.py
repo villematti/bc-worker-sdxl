@@ -453,9 +453,30 @@ def generate_image(job):
     except Exception:
         pprint.pprint(job_input, depth=4, compact=False)
 
-    # Validate input first
+    # Validate input with proper schema selection
     try:
+        # Determine task type first
+        task_type = job_input.get('task_type', 'text2img')
+        
+        # Auto-detect task type based on parameters
+        if job_input.get('image_url') and job_input.get('mask_url'):
+            task_type = 'inpaint'
+            print("[generate_image] Auto-detected task type: inpaint (image_url + mask_url)")
+        elif job_input.get('image_url') and not job_input.get('mask_url'):
+            task_type = 'img2img'
+            print("[generate_image] Auto-detected task type: img2img (image_url only)")
+        elif job_input.get('num_frames') and job_input.get('num_frames') > 0:
+            task_type = 'text2video'
+            print("[generate_image] Auto-detected task type: text2video (num_frames specified)")
+        else:
+            task_type = 'text2img'
+            print("[generate_image] Auto-detected task type: text2img (default)")
+        
+        print(f"[generate_image] Final task type: {task_type}")
+        
+        # Use the legacy schema for now (but with proper validation)
         validated_input = validate(job_input, INPUT_SCHEMA)
+        
     except Exception as err:
         import traceback
         print("[generate_image] validate(...) raised an exception:", err, flush=True)
@@ -490,13 +511,15 @@ def generate_image(job):
         # Import firestore here to avoid circular import issues
         from firebase_admin import firestore
         
-        # Determine media type from job input
-        media_type = "videos" if job_input.get("num_frames") else "images"
+        # Determine media type from job input - check for explicit video request
+        num_frames = job_input.get("num_frames")
+        is_video_request = num_frames is not None and num_frames > 0
+        media_type = "videos" if is_video_request else "images"
         
         processing_data = {
             "status": "processing",
             "started_at": firestore.SERVER_TIMESTAMP,
-            "task_type": "text2video" if media_type == "videos" else "text2image"
+            "task_type": "text2video" if is_video_request else "text2image"
         }
         
         success = cloud_storage.update_generation_status(user_id, file_uid, processing_data, media_type)
@@ -517,7 +540,9 @@ def generate_image(job):
             
             # Update Firestore with comprehensive error status
             if use_cloud_storage and user_id and file_uid:
-                media_type = "videos" if job_input.get("num_frames") else "images"
+                num_frames = job_input.get("num_frames")
+                is_video_request = num_frames is not None and num_frames > 0
+                media_type = "videos" if is_video_request else "images"
                 error_data = {
                     "generated": False,
                     "error": True,
@@ -574,10 +599,38 @@ def _process_generation_task(job, job_input):
     user_id = job_input.get("user_id")
     file_uid = job_input.get("file_uid")
     use_cloud_storage = job_input.get("use_cloud_storage", False)
-    task_type = "text2video" if job_input.get("num_frames") else "text2image"
+    
+    # Determine task type properly - NO MORE GUESSING!
+    task_type = job_input.get('task_type', 'text2img')
+    
+    # Auto-detect task type based on parameters (override if needed)
+    if job_input.get('image_url') and job_input.get('mask_url'):
+        task_type = 'inpaint'
+    elif job_input.get('image_url') and not job_input.get('mask_url'):
+        task_type = 'img2img'
+    elif job_input.get('num_frames') and job_input.get('num_frames') > 0:
+        task_type = 'text2video'
+    else:
+        task_type = 'text2img'
+    
+    print(f"[Background] FINAL TASK TYPE: {task_type}")
+    
+    # Validate parameters for the specific task type
+    if task_type == 'text2video':
+        # Video generation - validate video parameters
+        if not job_input.get('num_frames'):
+            raise ValueError("num_frames is required for video generation")
+        print(f"[Background] Video parameters: {job_input.get('num_frames')} frames, {job_input.get('video_width', 832)}x{job_input.get('video_height', 480)}")
+    else:
+        # Image generation - validate no video parameters are present
+        video_params = ['num_frames', 'video_height', 'video_width', 'video_guidance_scale', 'fps']
+        present_video_params = [p for p in video_params if job_input.get(p) is not None]
+        if present_video_params:
+            raise ValueError(f"Video parameters {present_video_params} not allowed for {task_type} requests")
+        print(f"[Background] Image parameters: {job_input.get('width', 1024)}x{job_input.get('height', 1024)}")
 
-    # Check if this is a text-to-video request
-    if job_input.get("num_frames"):  # Video generation
+    # Route to appropriate pipeline
+    if task_type == 'text2video':  # Video generation
         print("[Background] Mode: Text-to-Video (Wan2.1-T2V-1.3B)", flush=True)
         
         # Check if Wan2.1 is available
@@ -719,14 +772,14 @@ def _process_generation_task(job, job_input):
                 cloud_storage.update_generation_status(user_id, file_uid, error_data, "videos")
             return
 
-    # Continue with image generation logic
-    print("[Background] Mode: Image Generation", flush=True)
+    # Continue with image generation logic (SDXL pipelines)
+    print(f"[Background] Mode: {task_type.upper()} (SDXL)", flush=True)
     
     try:
         output = None
         
-        if starting_image and mask_url:
-            print("[Background] Mode: Inpainting", flush=True)
+        if task_type == 'inpaint':
+            print("[Background] Pipeline: SDXL Inpaint", flush=True)
             # Decode starting image
             if starting_image.startswith("data:"):
                 init_image = decode_base64_image(starting_image).convert("RGB")
@@ -751,8 +804,8 @@ def _process_generation_task(job, job_input):
             )
             output = inpaint_result.images
 
-        elif starting_image:
-            print("[Background] Mode: Img2Img (Refiner)", flush=True)
+        elif task_type == 'img2img':
+            print("[Background] Pipeline: SDXL Refiner (Img2Img)", flush=True)
             init_image = load_image(starting_image).convert("RGB")
             
             refiner_result = MODELS.refiner(
@@ -764,8 +817,8 @@ def _process_generation_task(job, job_input):
             )
             output = refiner_result.images
 
-        else:
-            print("[Background] Mode: Text2Img", flush=True)
+        else:  # task_type == 'text2img'
+            print("[Background] Pipeline: SDXL Base + Refiner (Text2Img)", flush=True)
             
             # Generate latent image using base pipeline
             base_result = MODELS.base(

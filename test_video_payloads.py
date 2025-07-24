@@ -17,8 +17,8 @@ def test_video_payload():
             "negative_prompt": "blurry, low quality, static, still image, artifacts",
             
             # Video-specific parameters for 14B model
-            "video_height": 720,        # 720P for higher quality (14B supports this)
-            "video_width": 1280,        # 1280x720 resolution
+            "video_height": 480,        # 480P optimized for 1.3B model
+            "video_width": 832,         # 832x480 resolution
             "num_frames": 81,           # Default for 14B model
             "video_guidance_scale": 5.0, # Recommended for 14B
             "fps": 15,                  # Standard frame rate

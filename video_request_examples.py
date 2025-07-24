@@ -26,8 +26,8 @@ def create_video_request_720p():
             "negative_prompt": "blurry, low quality, static, still image, artifacts, distorted, ugly, deformed",
             
             # Video resolution parameters
-            "video_height": 720,      # 720P height
-            "video_width": 1280,      # Automatically set to 1280 for 720P
+            "video_height": 480,      # 480P optimized for 1.3B model
+            "video_width": 832,       # Optimal width for 1.3B model
             
             # Video generation parameters
             "num_frames": 81,         # ~5 second video at 15fps
@@ -80,8 +80,8 @@ def create_video_request_custom():
             "negative_prompt": "static, still image, photograph, painting, artwork, blurry, low quality, distorted, deformed, ugly, artifacts, compression, pixelated, grainy, dark, underexposed, overexposed",
             
             # Video parameters
-            "video_height": 720,      # High quality
-            "video_width": 1280,
+            "video_height": 480,      # Optimal quality for 1.3B model
+            "video_width": 832,
             "num_frames": 65,         # ~4.3 second video
             "video_guidance_scale": 6.0,  # Slightly higher guidance
             "fps": 15,
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     
     print("\n💡 Key Points:")
     print("• task_type: 'text2video' triggers video generation")
-    print("• video_height/video_width: Resolution (480P or 720P)")
+    print("• video_height/video_width: Resolution (480P - 832x480 only for 1.3B model)")
     print("• num_frames: 16-121 frames (more = longer video)")
     print("• video_guidance_scale: 5.0 recommended for 14B model")
     print("• fps: Frame rate (10-30, default 15)")

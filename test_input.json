@@ -11,7 +11,6 @@
     "high_noise_frac": 0.8,
     "seed": 42,
     "scheduler": "K_EULER",
-    "num_images": 1,
     "image_url": null
   }
 }

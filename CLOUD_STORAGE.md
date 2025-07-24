@@ -97,7 +97,6 @@ FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", "project_id": "your-pr
   "prompt": "A futuristic city skyline at sunset",
   "width": 1024,
   "height": 1024,
-  "num_images": 2,
   
   "user_id": "firebase_user_456", 
   "file_uid": "unique-generation-id",

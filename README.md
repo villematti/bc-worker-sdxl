@@ -71,7 +71,6 @@ Set `task_type` to `text2img`, `img2img`, or `inpaint`:
 | `guidance_scale`          | `float` | `7.5`    | No        | Classifier-Free Guidance scale. Higher values lead to images closer to the prompt, lower values more creative       |
 | `strength`                | `float` | `0.3`    | No        | The strength of the noise added when using an `image_url` for image-to-image or refinement                          |
 | `image_url`               | `str`   | `None`   | No        | URL of an initial image to use for image-to-image generation (runs only refiner). If `None`, performs text-to-image |
-| `num_images`              | `int`   | `1`      | No        | Number of images to generate per prompt (Constraint: must be 1 or 2)                                                |
 | `high_noise_frac`         | `float` | `None`   | No        | Fraction of denoising steps performed by the base model (e.g., 0.8 for 80%). `denoising_end` for base               |
 
 ### Video Generation (Wan2.1-T2V-1.3B)
@@ -83,13 +82,13 @@ Set `task_type` to `text2video`:
 | `task_type`               | `str`   | `None`   | **Yes**   | Set to `"text2video"` for video generation                                                                          |
 | `prompt`                  | `str`   | `None`   | **Yes**   | Text description of the desired video content                                                                       |
 | `negative_prompt`         | `str`   | `None`   | No        | Text prompt specifying concepts to exclude from the video                                                           |
-| `video_height`            | `int`   | `480`    | No        | Video height in pixels (480 or 720 supported)                                                                       |
-| `video_width`             | `int`   | `832`    | No        | Video width in pixels (832 or 1280 supported)                                                                       |
-| `num_frames`              | `int`   | `81`     | No        | Number of frames to generate (16-81 range, 81 is official default)                                                  |
-| `video_guidance_scale`    | `float` | `5.0`    | No        | Guidance scale for video generation (1.0-20.0 range, 5.0 is official default)                                      |
-| `fps`                     | `int`   | `15`     | No        | Frames per second for output video (6-30 range, 15 is official default)                                             |
-| `num_inference_steps`     | `int`   | `25`     | No        | Number of denoising steps for video generation                                                                      |
-| `seed`                    | `int`   | `None`   | No        | Random seed for reproducibility                                                                                     |
+| `num_frames`              | `int`   | `None`   | No        | Number of frames to generate (16-81). Only parameter you need to specify for video length.                         |
+
+**Fixed video settings (automatically applied):**
+- **Resolution**: 832x480 (optimized for Wan2.1-1.3B)
+- **FPS**: 15 (standard frame rate)  
+- **Guidance**: 5.0 (optimal for quality)
+- **Other parameters**: `seed`, `num_inference_steps` work as usual
 
 > [!NOTE]  
 > `prompt` is required unless `image_url` is provided
@@ -112,8 +111,7 @@ Set `task_type` to `text2video`:
     "strength": 0.3,
     "high_noise_frac": 0.8,
     "seed": 42,
-    "scheduler": "K_EULER",
-    "num_images": 1
+    "scheduler": "K_EULER"
   }
 }
 ```
