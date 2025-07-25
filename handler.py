@@ -63,8 +63,8 @@ class ModelHandler:
         self.load_models()
 
     def load_base(self):
-        # Load from local RunPod volume
-        local_base_path = "/runpod-volume/stable-diffusion-xl-base-1.0"
+        # Load from local RunPod volume (corrected paths)
+        local_base_path = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0"
         local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"
         
         print(f"📁 Loading SDXL Base from: {local_base_path}")
