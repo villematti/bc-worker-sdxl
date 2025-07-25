@@ -12,7 +12,7 @@ def validate_model_paths():
     print("📋 Validating Model Paths on RunPod Volume\n")
     
     expected_paths = [
-        "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0",
+        "/runpod-volume/stable-diffusion-xl-base-1.0",
         "/runpod-volume/sdxl-vae-fp16-fix", 
         "/runpod-volume/stable-diffusion-xl-refiner-1.0",
         "/runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1",
@@ -50,7 +50,7 @@ def validate_configuration_changes():
             content = f.read()
         
         # Should have local paths
-        has_local_base = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0" in content
+        has_local_base = "/runpod-volume/stable-diffusion-xl-base-1.0" in content
         has_local_wan14b = "/runpod-volume/Wan2.1-T2V-14B-Diffusers" in content
         has_local_only = "local_files_only=True" in content
         

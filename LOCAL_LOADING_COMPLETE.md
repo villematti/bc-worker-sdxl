@@ -16,7 +16,7 @@
 
 ### **3. RunPod Volume Paths Used**
 ```
-/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0     # SDXL Base
+/runpod-volume/stable-diffusion-xl-base-1.0                     # SDXL Base
 /runpod-volume/sdxl-vae-fp16-fix                                 # VAE  
 /runpod-volume/stable-diffusion-xl-refiner-1.0                  # SDXL Refiner
 /runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1           # SDXL Inpaint
@@ -65,7 +65,7 @@ The changes are complete and ready! When you deploy to RunPod:
 
 ### **Expected Startup Logs:**
 ```
-📁 Loading SDXL Base from: /runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0
+📁 Loading SDXL Base from: /runpod-volume/stable-diffusion-xl-base-1.0
 ✅ SDXL Base loaded from local storage
 📁 Loading SDXL Refiner from: /runpod-volume/stable-diffusion-xl-refiner-1.0  
 ✅ SDXL Refiner loaded from local storage
