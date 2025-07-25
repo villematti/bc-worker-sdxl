@@ -47,6 +47,9 @@
 - **`num_inference_steps`** - Quality vs speed (10-100, default: 25)
 - **`guidance_scale`** - How closely to follow prompt (1-20, default: 7.5)
 
+### **Legacy Parameters (Accepted but Ignored):**
+- **`num_images`** - Always generates 1 image (accepted for backward compatibility)
+
 ### **Video Specific:**
 - **`num_frames`** - Length of video (16-81 frames, only parameter you need to specify)
 

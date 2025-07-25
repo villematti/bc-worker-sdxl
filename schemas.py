@@ -59,6 +59,15 @@ INPUT_SCHEMA = {
         'default': 0.3,
         'constraints': lambda x: 0.1 <= x <= 1.0
     },
+    
+    # LEGACY PARAMETER (accepted but ignored for compatibility)
+    'num_images': {
+        'type': int,
+        'required': False,
+        'default': 1,
+        'constraints': lambda x: x == 1  # Only accept 1, since we always generate 1 image
+    },
+    
     'image_url': {
         'type': str,
         'required': False,

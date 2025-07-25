@@ -35,7 +35,7 @@ def get_diffusion_pipelines():
     """
     
     # Local model paths on RunPod volume (corrected to match actual folder names)
-    local_base_path = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0"
+    local_base_path = "/runpod-volume/stable-diffusion-xl-base-1.0"
     local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"  
     local_refiner_path = "/runpod-volume/stable-diffusion-xl-refiner-1.0"
     local_inpaint_path = "/runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1"
@@ -47,7 +47,7 @@ def get_diffusion_pipelines():
     """
     
     # Local model paths on RunPod volume (corrected to match actual folder names)
-    local_base_path = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0"
+    local_base_path = "/runpod-volume/stable-diffusion-xl-base-1.0"
     local_vae_path = "/runpod-volume/sdxl-vae-fp16-fix"  
     local_refiner_path = "/runpod-volume/stable-diffusion-xl-refiner-1.0"
     local_inpaint_path = "/runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1"
@@ -235,7 +235,7 @@ if __name__ == "__main__":
             print(f"💥 Model loading failed completely: {e}")
             print("🔍 Check that all models are present in /runpod-volume/")
             print("Expected paths:")
-            print("  /runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0")
+            print("  /runpod-volume/stable-diffusion-xl-base-1.0")
             print("  /runpod-volume/sdxl-vae-fp16-fix")  
             print("  /runpod-volume/stable-diffusion-xl-refiner-1.0")
             print("  /runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1")

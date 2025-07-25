@@ -4,7 +4,7 @@
 
 ### **Problem 1: Path Mismatch**
 - **Code was looking for:** `/runpod-volume/stable-diffusion-xl-base-1.0`
-- **Actual folder name:** `/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0`
+- **Actual folder name:** `/runpod-volume/stable-diffusion-xl-base-1.0`
 - **Result:** Models not found during loading
 
 ### **Problem 2: Docker Build Context Issue**
@@ -22,7 +22,7 @@ Updated all paths to match your actual folder names:
 local_base_path = "/runpod-volume/stable-diffusion-xl-base-1.0"
 
 # NEW (correct):
-local_base_path = "/runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0"
+local_base_path = "/runpod-volume/stable-diffusion-xl-base-1.0"
 ```
 
 ### **2. Smart Build vs Runtime Detection**
@@ -58,7 +58,7 @@ else:
 🔧 DOCKER BUILD: Validating model configuration...
    RunPod volume will be mounted at runtime
 📋 Expected model paths at runtime:
-   • SDXL Base: /runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0
+   • SDXL Base: /runpod-volume/stable-diffusion-xl-base-1.0
    • VAE: /runpod-volume/sdxl-vae-fp16-fix
    • SDXL Refiner: /runpod-volume/stable-diffusion-xl-refiner-1.0
    • SDXL Inpaint: /runpod-volume/stable-diffusion-xl-1.0-inpainting-0.1
@@ -71,7 +71,7 @@ else:
 ### **During Runtime (First Request):**
 ```
 🚀 RUNTIME: Loading models from RunPod volume...
-📁 Found local SDXL Base at: /runpod-volume/sdxl-vae-fp16-fixstable-diffusion-xl-base-1.0
+📁 Found local SDXL Base at: /runpod-volume/stable-diffusion-xl-base-1.0
 ✅ SDXL Base loaded successfully from local storage!
 📁 Found local VAE at: /runpod-volume/sdxl-vae-fp16-fix
 ✅ SDXL VAE loaded successfully from local storage!
